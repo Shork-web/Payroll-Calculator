@@ -91,12 +91,33 @@ describe("computePayroll", () => {
       lateMinutes: 0,
       absentDays: 0,
       overpayment: 5_000,
+      undertimeMinutes: 0,
     })
 
     expect(result.grossPay).toBe(3_000)
     expect(result.grossPay).toBeLessThan(SEMI_MONTHLY_EXEMPTION)
     expect(result.tax).toBe(0)
     expect(result.netPay).toBe(3_000)
+  })
+
+  it("calculates undertime deduction separately and applies premium", () => {
+    const result = computePayroll({
+      monthlyRate: 27_000,
+      workingDays: 22,
+      periodStart: "2026-03-01",
+      periodEnd: "2026-03-15",
+      lateMinutes: 10,
+      undertimeMinutes: 15,
+      absentDays: 0,
+      overpayment: 0,
+    })
+
+    expect(result.perMinRate).toBe(2.56)
+    expect(result.lateDeduction).toBe(25.60)
+    expect(result.undertimeDeduction).toBe(38.40)
+    expect(result.earned).toBe(13_500)
+    expect(result.total).toBe(13_436)
+    expect(result.premium).toBe(2_687.2)
   })
 })
 

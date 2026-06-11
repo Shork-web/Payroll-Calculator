@@ -45,6 +45,10 @@ export function PaySummary({ result, inputs }: PaySummaryProps) {
     ? `${inputs.lateMinutes} mins${inputs.lateDates ? ` — Late on ${inputs.lateDates}` : ""}`
     : undefined
 
+  const undertimeSubtitle = result && inputs && (inputs.undertimeMinutes ?? 0) > 0
+    ? `${inputs.undertimeMinutes} mins${inputs.undertimeDates ? ` — UT on ${inputs.undertimeDates}` : ""}`
+    : undefined
+
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-950">
       <h2 className="mb-6 text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -85,11 +89,55 @@ export function PaySummary({ result, inputs }: PaySummaryProps) {
           valueClassName={deductionValueClass(result?.absentDeduction)}
         />
         <MetricCard
-          label="Less: Late/Undertime"
+          label="Less: Late"
           subtitle={lateSubtitle}
           value={formatValue(result?.lateDeduction)}
           valueClassName={deductionValueClass(result?.lateDeduction)}
-        />
+        >
+          {result && inputs && inputs.lateIncidents && inputs.lateIncidents.length > 0 && (
+            <div className="mt-3 pt-2 border-t border-gray-200/50 dark:border-gray-800/50 flex flex-col gap-1 text-xs">
+              {inputs.lateIncidents
+                .filter((incident) => incident.type === "late")
+                .map((incident, index) => {
+                  if (!incident.date?.trim() || !(Number(incident.minutes) > 0)) {
+                    return null
+                  }
+                  const incidentDeduction = Number(incident.minutes) * result.perMinRate
+                  return (
+                    <div key={index} className="flex justify-between text-gray-500 dark:text-gray-400">
+                      <span>• {incident.date} ({incident.minutes} mins)</span>
+                      <span className="font-medium tabular-nums">{formatPeso(incidentDeduction)}</span>
+                    </div>
+                  )
+                })}
+            </div>
+          )}
+        </MetricCard>
+        <MetricCard
+          label="Less: Undertime"
+          subtitle={undertimeSubtitle}
+          value={formatValue(result?.undertimeDeduction)}
+          valueClassName={deductionValueClass(result?.undertimeDeduction)}
+        >
+          {result && inputs && inputs.lateIncidents && inputs.lateIncidents.length > 0 && (
+            <div className="mt-3 pt-2 border-t border-gray-200/50 dark:border-gray-800/50 flex flex-col gap-1 text-xs">
+              {inputs.lateIncidents
+                .filter((incident) => incident.type === "undertime")
+                .map((incident, index) => {
+                  if (!incident.date?.trim() || !(Number(incident.minutes) > 0)) {
+                    return null
+                  }
+                  const incidentDeduction = Number(incident.minutes) * result.perMinRate
+                  return (
+                    <div key={index} className="flex justify-between text-gray-500 dark:text-gray-400">
+                      <span>• {incident.date} ({incident.minutes} mins)</span>
+                      <span className="font-medium tabular-nums">{formatPeso(incidentDeduction)}</span>
+                    </div>
+                  )
+                })}
+            </div>
+          )}
+        </MetricCard>
         <MetricCard
           label="Sub-total"
           value={formatValue(result?.total)}
@@ -151,13 +199,15 @@ function MetricCard({
   valueClassName = metricValueClassName,
   valueStyle,
   className,
+  children,
 }: {
   label: string
-  subtitle?: string
+  subtitle?: string | undefined
   value: string
-  valueClassName?: string
-  valueStyle?: CSSProperties
-  className?: string
+  valueClassName?: string | undefined
+  valueStyle?: CSSProperties | undefined
+  className?: string | undefined
+  children?: React.ReactNode | undefined
 }) {
   return (
     <article className={`${cardClassName} ${className ?? ""}`.trim()}>
@@ -166,6 +216,7 @@ function MetricCard({
       <p className={valueClassName} style={valueStyle}>
         {value}
       </p>
+      {children}
     </article>
   )
 }

@@ -12,8 +12,13 @@ describe("payrollSchema", () => {
       monthlyRate: "27000",
       workingDays: "22",
       lateMinutes: "8",
+      undertimeMinutes: "12",
       absentDays: "0",
       overpayment: "0",
+      lateIncidents: [
+        { date: "June 4", minutes: "5", type: "late" },
+        { date: "June 5", minutes: "7", type: "undertime" },
+      ],
     })
 
     expect(result.success).toBe(true)
@@ -21,6 +26,11 @@ describe("payrollSchema", () => {
       expect(result.data.monthlyRate).toBe(27_000)
       expect(result.data.workingDays).toBe(22)
       expect(result.data.lateMinutes).toBe(8)
+      expect(result.data.undertimeMinutes).toBe(12)
+      expect(result.data.lateIncidents).toEqual([
+        { date: "June 4", minutes: 5, type: "late" },
+        { date: "June 5", minutes: 7, type: "undertime" },
+      ])
     }
   })
 

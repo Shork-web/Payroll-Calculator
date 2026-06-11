@@ -4,8 +4,8 @@ export interface EmployeeInfo {
   period: string
   periodStart: string
   periodEnd: string
-  signatoryName?: string
-  signatoryTitle?: string
+  signatoryName?: string | undefined
+  signatoryTitle?: string | undefined
 }
 
 export interface PayrollInputs {
@@ -15,10 +15,12 @@ export interface PayrollInputs {
   periodStart: string
   periodEnd: string
   lateMinutes: number
+  undertimeMinutes?: number | undefined
   absentDays: number
   overpayment: number
-  lateDates?: string
-  lateIncidents?: Array<{ date: string; minutes: number }>
+  lateDates?: string | undefined
+  undertimeDates?: string | undefined
+  lateIncidents?: Array<{ date: string; minutes: number; type: "late" | "undertime" }> | undefined
 }
 
 export interface PayrollResult {
@@ -30,7 +32,7 @@ export interface PayrollResult {
   perMinRate: number
   /** Semi-monthly base (monthly rate ÷ 2). */
   earned: number
-  /** Earned minus absent and late, before premium. */
+  /** Earned minus absent, late, and undertime, before premium. */
   total: number
   premium: number
   grossPay: number
@@ -38,6 +40,7 @@ export interface PayrollResult {
   overpaymentPremium: number
   absentDeduction: number
   lateDeduction: number
+  undertimeDeduction: number
   taxableIncome: number
   tax: number
   totalDeductions: number

@@ -23,12 +23,12 @@ export async function exportPayrollPdf(
 
   const {
     dailyRate, hourlyRate, perMinRate,
-    earned, absentDeduction, lateDeduction,
+    earned, absentDeduction, lateDeduction, undertimeDeduction,
     total, premium,
     overpayment, overpaymentPremium,
     tax, netPay,
   } = result
-  const { monthlyRate, workingDays, lateMinutes, absentDays, lateIncidents } = inputs
+  const { monthlyRate, workingDays, lateMinutes, undertimeMinutes, absentDays, lateIncidents } = inputs
 
   const pageW = 210
   const pageMargin = 18
@@ -44,83 +44,92 @@ export async function exportPayrollPdf(
   doc.setTextColor(100, 116, 139) // Slate-500
   doc.text("REPUBLIC OF THE PHILIPPINES", pageW / 2, y, { align: "center" })
 
-  y += 5
+  y += 4.5
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(10)
+  doc.setFontSize(10.5)
   doc.setTextColor(15, 110, 86) // PhilFIDA Emerald
   doc.text("PHILIPPINE FIBER INDUSTRY DEVELOPMENT AUTHORITY", pageW / 2, y, { align: "center" })
 
   y += 3
-  doc.setDrawColor(15, 110, 86) // PhilFIDA Emerald Accent Divider
-  doc.setLineWidth(0.4)
+  // Elegant double lines
+  doc.setDrawColor(15, 110, 86) // PhilFIDA Emerald
+  doc.setLineWidth(0.5)
+  doc.line(pageMargin, y, RM, y)
+  
+  y += 0.8
+  doc.setDrawColor(226, 232, 240) // Slate-200
+  doc.setLineWidth(0.2)
   doc.line(pageMargin, y, RM, y)
 
-  y += 8
+  y += 7.5
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(13)
+  doc.setFontSize(12)
   doc.setTextColor(30, 41, 59) // Slate-800
   doc.text("COMPUTATION OF SERVICES RENDERED", pageW / 2, y, { align: "center" })
 
-  y += 5.5
+  y += 5
   doc.setFont("helvetica", "normal")
-  doc.setFontSize(9.5)
+  doc.setFontSize(9)
   doc.setTextColor(71, 85, 105) // Slate-600
   doc.text(`For the Period: ${period}`, pageW / 2, y, { align: "center" })
 
-  y += 5
+  y += 4.5
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(8.5)
+  doc.setFontSize(8)
   doc.setTextColor(148, 163, 184) // Slate-400
   doc.text("OFFICIAL PAYROLL COMPUTATION RECORD", pageW / 2, y, { align: "center" })
 
-  y += 8
+  y += 7.5
 
   // 2. Two-Column Card Layout: Employee Details & Pay Rates
-  const cardHeight = 35
-  doc.setFillColor(255, 255, 255)
+  const cardHeight = 38
+  doc.setFillColor(250, 250, 250) // very light card fill
   doc.setDrawColor(226, 232, 240) // Slate-200
   doc.setLineWidth(0.4)
-  doc.roundedRect(pageMargin, y, contentW, cardHeight, 1.5, 1.5, "FD")
+  doc.roundedRect(pageMargin, y, contentW, cardHeight, 2, 2, "FD")
 
   // Vertical divider in the card
   const midX = pageW / 2
   doc.setDrawColor(241, 245, 249) // Slate-100
   doc.line(midX, y + 4, midX, y + cardHeight - 4)
 
-  // Left Column: Employee Details
+  // Left Column: Employee Details (Stacked Layout)
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(8.5)
-  doc.setTextColor(15, 110, 86) // Emerald
-  doc.text("EMPLOYEE DETAILS", pageMargin + 5, y + 6)
+  doc.setFontSize(7.5)
+  doc.setTextColor(100, 116, 139) // Slate-500
+  doc.text("EMPLOYEE INFORMATION", pageMargin + 6, y + 6)
 
   doc.setFont("helvetica", "normal")
-  doc.setFontSize(9)
-  doc.setTextColor(100, 116, 139) // Slate-500
-  doc.text("Name:", pageMargin + 5, y + 14)
+  doc.setFontSize(7)
+  doc.setTextColor(148, 163, 184) // Slate-400
+  doc.text("NAME", pageMargin + 6, y + 12.5)
   
   doc.setFont("helvetica", "bold")
+  doc.setFontSize(9)
   doc.setTextColor(30, 41, 59) // Slate-800
   const employeeName = employee.name.toUpperCase()
-  doc.text(employeeName, pageMargin + 22, y + 14)
+  doc.text(employeeName, pageMargin + 6, y + 17)
 
   doc.setFont("helvetica", "normal")
-  doc.setTextColor(100, 116, 139)
-  doc.text("Position:", pageMargin + 5, y + 22)
+  doc.setFontSize(7)
+  doc.setTextColor(148, 163, 184) // Slate-400
+  doc.text("POSITION", pageMargin + 6, y + 23.5)
   
   doc.setFont("helvetica", "bold")
+  doc.setFontSize(9)
   doc.setTextColor(30, 41, 59)
-  const employeePosLines = wrapLines(doc, employee.position, midX - pageMargin - 28)
-  let posLineY = y + 22
+  const employeePosLines = wrapLines(doc, employee.position, midX - pageMargin - 12)
+  let posLineY = y + 28
   employeePosLines.forEach((line) => {
-    doc.text(line, pageMargin + 22, posLineY)
-    posLineY += 4
+    doc.text(line, pageMargin + 6, posLineY)
+    posLineY += 4.2
   })
 
-  // Right Column: Pay Rates
+  // Right Column: Pay Rates (Clean grid layout)
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(8.5)
-  doc.setTextColor(15, 110, 86)
-  doc.text("PAY RATES & VALUES", midX + 6, y + 6)
+  doc.setFontSize(7.5)
+  doc.setTextColor(100, 116, 139) // Slate-500
+  doc.text("SALARY RATE DETAILS", midX + 6, y + 6)
 
   const rateRows: Array<[string, string]> = [
     ["Monthly Rate (MR):", "Php " + n(monthlyRate)],
@@ -138,8 +147,8 @@ export async function exportPayrollPdf(
 
     doc.setFont("helvetica", "bold")
     doc.setTextColor(30, 41, 59)
-    doc.text(value, RM - 5, rateY, { align: "right" })
-    rateY += 5
+    doc.text(value, RM - 6, rateY, { align: "right" })
+    rateY += 5.5
   })
 
   y += cardHeight + 8
@@ -196,17 +205,42 @@ export async function exportPayrollPdf(
   }
 
   if (lateMinutes > 0) {
-    drawRow(`Less: Lates/Undertime (${lateMinutes} mins)`, `(${n(lateDeduction)})`, false, true)
+    drawRow(`Less: Lates (${lateMinutes} mins)`, `(${n(lateDeduction)})`, false, true)
     
-    if (lateIncidents && lateIncidents.length > 0) {
+    const lateIncidentsOnly = lateIncidents?.filter(i => i.type === "late" || !i.type) || []
+    if (lateIncidentsOnly.length > 0) {
       doc.setFont("helvetica", "normal")
       doc.setFontSize(8)
       doc.setTextColor(100, 116, 139) // Slate-500
       
-      lateIncidents.forEach((incident) => {
+      lateIncidentsOnly.forEach((incident) => {
         if (incident.date?.trim() && Number(incident.minutes) > 0) {
           const incidentDeduction = Number(incident.minutes) * perMinRate
-          doc.text(`  • ${incident.date}: ${incident.minutes} mins (Php ${n(incidentDeduction)})`, pageMargin + 8, y - 1)
+          doc.text(`• ${incident.date}`, pageMargin + 8, y - 1)
+          doc.text(`${incident.minutes} mins`, pageMargin + 55, y - 1)
+          doc.text(`Php ${n(incidentDeduction)}`, amountCol - 4, y - 1, { align: "right" })
+          y += 4.5
+        }
+      })
+      y += 1.5
+    }
+  }
+
+  if ((undertimeMinutes ?? 0) > 0) {
+    drawRow(`Less: Undertime (${undertimeMinutes} mins)`, `(${n(undertimeDeduction)})`, false, true)
+    
+    const undertimeIncidentsOnly = lateIncidents?.filter(i => i.type === "undertime") || []
+    if (undertimeIncidentsOnly.length > 0) {
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(8)
+      doc.setTextColor(100, 116, 139) // Slate-500
+      
+      undertimeIncidentsOnly.forEach((incident) => {
+        if (incident.date?.trim() && Number(incident.minutes) > 0) {
+          const incidentDeduction = Number(incident.minutes) * perMinRate
+          doc.text(`• ${incident.date}`, pageMargin + 8, y - 1)
+          doc.text(`${incident.minutes} mins`, pageMargin + 55, y - 1)
+          doc.text(`Php ${n(incidentDeduction)}`, amountCol - 4, y - 1, { align: "right" })
           y += 4.5
         }
       })
@@ -251,51 +285,64 @@ export async function exportPayrollPdf(
   y += 4
 
   // 5. Net Pay Due Highlight Card
-  const netCardH = 12
-  doc.setFillColor(240, 253, 250) // Emerald-50
-  doc.rect(pageMargin, y, contentW, netCardH, "F")
-
-  doc.setDrawColor(204, 251, 241) // Emerald-100
-  doc.setLineWidth(0.4)
-  // Draw card boundary lines
-  doc.line(pageMargin, y, RM, y)
-  doc.line(pageMargin, y + netCardH, RM, y + netCardH)
-  doc.line(RM, y, RM, y + netCardH)
-
-  // Solid left-border stripe
-  doc.setFillColor(15, 110, 86) // PhilFIDA Emerald
-  doc.rect(pageMargin, y, 3, netCardH, "F")
+  const netCardH = 14
+  doc.setFillColor(15, 110, 86) // Solid PhilFIDA Emerald
+  doc.roundedRect(pageMargin, y, contentW, netCardH, 1.5, 1.5, "F")
 
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(11)
-  doc.setTextColor(15, 110, 86)
-  doc.text("NET PAY DUE", pageMargin + 6, y + 7.5)
-  doc.text("Php " + n(netPay), amountCol, y + 7.5, { align: "right" })
+  doc.setFontSize(10.5)
+  doc.setTextColor(255, 255, 255) // White text
+  doc.text("NET PAY DUE", pageMargin + 6, y + 9)
+  doc.setFontSize(12.5)
+  doc.text("Php " + n(netPay), amountCol, y + 9, { align: "right" })
 
-  y += netCardH + 10
+  y += netCardH + 12
 
-  // 6. Signatory Section
+  // 6. Double Signature Blocks (Conforme & Certified Correct)
   const sigName = (employee.signatoryName || "JAMES FRANCIENNE J. ROSIT").toUpperCase()
   const sigTitle = employee.signatoryTitle || "OIC ADMIN"
+  const employeeNameStr = employee.name.toUpperCase()
 
+  // Section Headers
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8.5)
   doc.setTextColor(100, 116, 139) // Slate-500
-  doc.text("Certified Correct:", pageMargin + 4, y)
+  doc.text("Conforme:", pageMargin + 4, y)
+  doc.text("Certified Correct:", midX + 6, y)
 
-  y += 14
+  y += 14 // Space for signature
+
+  // Left Column: Employee Signatory
+  doc.setDrawColor(203, 213, 225) // Slate-300
+  doc.setLineWidth(0.3)
+  doc.line(pageMargin + 4, y, pageMargin + 70, y) // Signature Line
+  
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(9.5)
+  doc.setFontSize(9)
   doc.setTextColor(30, 41, 59) // Slate-800
-  doc.text(sigName, pageMargin + 4, y)
-
-  y += 4
+  doc.text(employeeNameStr, pageMargin + 4, y + 4.5)
+  
   doc.setFont("helvetica", "normal")
-  doc.setFontSize(8.5)
+  doc.setFontSize(8)
   doc.setTextColor(100, 116, 139) // Slate-500
-  doc.text(sigTitle, pageMargin + 4, y)
+  doc.text("Employee Signature", pageMargin + 4, y + 8)
+  doc.text("Date: __________________", pageMargin + 4, y + 12.5)
 
-  y += 12
+  // Right Column: Certified Signatory
+  doc.line(midX + 6, y, RM - 4, y) // Signature Line
+  
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(9)
+  doc.setTextColor(30, 41, 59) // Slate-800
+  doc.text(sigName, midX + 6, y + 4.5)
+  
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8)
+  doc.setTextColor(100, 116, 139) // Slate-500
+  doc.text(sigTitle, midX + 6, y + 8)
+  doc.text("Date: __________________", midX + 6, y + 12.5)
+
+  y += 20
 
   // 7. Footer Note
   doc.setDrawColor(226, 232, 240) // Slate-200
@@ -306,10 +353,10 @@ export async function exportPayrollPdf(
   doc.setFont("helvetica", "italic")
   doc.setFontSize(8.5)
   doc.setTextColor(148, 163, 184) // Slate-400
-  if (absentDays > 0 || lateMinutes > 0) {
-    const baseLost = absentDeduction + lateDeduction
+  if (absentDays > 0 || lateMinutes > 0 || (undertimeMinutes ?? 0) > 0) {
+    const baseLost = absentDeduction + lateDeduction + undertimeDeduction
     const premiumLost = baseLost * 0.20
-    doc.text(`Note: Premium not credited due to absences/lates: Php ${n(premiumLost)}`, pageMargin, y)
+    doc.text(`Note: Premium not credited due to absences/lates/undertime: Php ${n(premiumLost)}`, pageMargin, y)
   } else {
     doc.text("This is an official payroll computation record.", pageMargin, y)
   }

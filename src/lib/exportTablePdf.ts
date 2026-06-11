@@ -18,7 +18,7 @@ export async function exportTablePdf(
   const period = formatPayPeriod(inputs.periodStart, inputs.periodEnd)
 
   const {
-    earned, absentDeduction, lateDeduction,
+    earned, absentDeduction, lateDeduction, undertimeDeduction,
     total, premium, grossPay,
     overpayment, overpaymentPremium,
     tax, netPay,
@@ -42,7 +42,8 @@ export async function exportTablePdf(
     "MONTHLY\nRATE",
     "EARNED FOR\nTHE PERIOD",
     "ABSENT",
-    "LATE /\nUNDERTIME",
+    "LATE",
+    "UNDERTIME",
     "TOTAL",
     "20%\nPREMIUM",
     "OVERPAYMENT",
@@ -58,6 +59,7 @@ export async function exportTablePdf(
     n(earned),
     n(absentDeduction),
     n(lateDeduction),
+    n(undertimeDeduction),
     n(total),
     n(premium),
     n(overpayment),
@@ -98,12 +100,20 @@ export async function exportTablePdf(
     margin: { top: 30, right: 10, left: 10, bottom: 10 }
   })
 
-  if (inputs.lateMinutes > 0 && inputs.lateDates) {
+  const totalUTMins = inputs.lateMinutes + (inputs.undertimeMinutes ?? 0)
+  if (totalUTMins > 0) {
+    const noteParts = []
+    if (inputs.lateMinutes > 0 && inputs.lateDates) {
+      noteParts.push(`Late of ${inputs.lateMinutes} mins on ${inputs.lateDates}`)
+    }
+    if ((inputs.undertimeMinutes ?? 0) > 0 && inputs.undertimeDates) {
+      noteParts.push(`Undertime of ${inputs.undertimeMinutes} mins on ${inputs.undertimeDates}`)
+    }
     const pageHeight = doc.internal.pageSize.getHeight()
     doc.setFont("helvetica", "italic")
     doc.setFontSize(8)
     doc.setTextColor(100, 116, 139)
-    doc.text(`Note: Late/Undertime of ${inputs.lateMinutes} mins on ${inputs.lateDates}`, 10, pageHeight - 10)
+    doc.text(`Note: ${noteParts.join(" | ")}`, 10, pageHeight - 10)
   }
 
   // ── Save ──────────────────────────────────────────────────────────────────

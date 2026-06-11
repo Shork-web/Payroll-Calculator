@@ -37,11 +37,14 @@ function createFormDefaultValues(): PayrollFormInput {
     monthlyRate: 27_000,
     workingDays: "",
     lateMinutes: 0,
+    undertimeMinutes: 0,
     absentDays: 0,
     overpayment: 0,
     signatoryName: "JAMES FRANCIENNE J. ROSIT",
     signatoryTitle: "OIC ADMIN",
     lateDates: "",
+    undertimeDates: "",
+    lateIncidents: [],
   }
 }
 
@@ -92,9 +95,26 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
   useEffect(() => {
     const runCompute = () => {
       const values = getValues()
-      const totalLateMinutes = (values.lateIncidents || []).reduce((sum, item) => sum + (Number(item.minutes) || 0), 0)
-      const computedLateDates = (values.lateIncidents || [])
+      const rawIncidents = values.lateIncidents || []
+      const typedIncidents = rawIncidents
         .filter(item => item.date?.trim() && Number(item.minutes) > 0)
+        .map(item => ({
+          date: item.date,
+          minutes: Number(item.minutes) || 0,
+          type: (item.type || "late") as "late" | "undertime",
+        }))
+
+      const lateIncidentsOnly = typedIncidents.filter(item => item.type === "late")
+      const undertimeIncidentsOnly = typedIncidents.filter(item => item.type === "undertime")
+
+      const totalLateMinutes = lateIncidentsOnly.reduce((sum, item) => sum + item.minutes, 0)
+      const totalUndertimeMinutes = undertimeIncidentsOnly.reduce((sum, item) => sum + item.minutes, 0)
+
+      const computedLateDates = lateIncidentsOnly
+        .map(item => `${item.date} (${item.minutes}m)`)
+        .join(", ")
+
+      const computedUndertimeDates = undertimeIncidentsOnly
         .map(item => `${item.date} (${item.minutes}m)`)
         .join(", ")
 
@@ -102,6 +122,7 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
         monthlyRate: values.monthlyRate,
         workingDays: values.workingDays,
         lateMinutes: totalLateMinutes,
+        undertimeMinutes: totalUndertimeMinutes,
         absentDays: values.absentDays,
         overpayment: values.overpayment,
       })
@@ -115,7 +136,14 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
         return
       }
 
-      const payrollInputs = { ...numericParsed.data, periodStart, periodEnd, lateDates: computedLateDates, lateIncidents: values.lateIncidents }
+      const payrollInputs = {
+        ...numericParsed.data,
+        periodStart,
+        periodEnd,
+        lateDates: computedLateDates,
+        undertimeDates: computedUndertimeDates,
+        lateIncidents: typedIncidents
+      }
       const period = formatPayPeriod(periodStart, periodEnd)
 
       onCompute(
@@ -127,7 +155,11 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
 
     runCompute()
     const subscription = watch((_values, { name }) => {
-      if (name === undefined || (WATCHED_FIELDS as readonly string[]).includes(name)) {
+      if (
+        name === undefined ||
+        (WATCHED_FIELDS as readonly string[]).includes(name) ||
+        name.startsWith("lateIncidents")
+      ) {
         runCompute()
       }
     })
@@ -288,7 +320,7 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
             </span>
             <button
               type="button"
-              onClick={() => append({ minutes: 0, date: "" })}
+              onClick={() => append({ minutes: 0, date: "", type: "late" })}
               className="text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 px-2.5 py-1.5 rounded-lg border border-emerald-200/50 hover:bg-emerald-100 transition-colors"
             >
               + Add Incident
@@ -315,7 +347,20 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
                       <p className={errorClassName}>{errors.lateIncidents[index].date.message}</p>
                     )}
                   </div>
-                  <div className="w-28">
+                  <div className="w-32">
+                    <label className="text-xs text-gray-500 dark:text-gray-400">Type</label>
+                    <select
+                      className={inputClassName}
+                      {...register(`lateIncidents.${index}.type` as const)}
+                    >
+                      <option value="late">Late</option>
+                      <option value="undertime">Undertime</option>
+                    </select>
+                    {errors.lateIncidents?.[index]?.type?.message && (
+                      <p className={errorClassName}>{errors.lateIncidents[index].type.message}</p>
+                    )}
+                  </div>
+                  <div className="w-24">
                     <label className="text-xs text-gray-500 dark:text-gray-400">Minutes</label>
                     <input
                       type="number"

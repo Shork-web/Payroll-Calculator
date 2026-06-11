@@ -96,10 +96,18 @@ export function PayslipPreview({ employee, result, inputs, className }: PayslipP
                 <PayslipRow
                   label={
                     inputs && inputs.lateMinutes > 0
-                      ? `Late/UT (${inputs.lateMinutes} mins${inputs.lateDates ? ` — ${inputs.lateDates}` : ""})`
-                      : "Late/UT"
+                      ? `Late (${inputs.lateMinutes} mins${inputs.lateDates ? ` — ${inputs.lateDates}` : ""})`
+                      : "Late"
                   }
                   value={formatDeduction(result.lateDeduction)}
+                />
+                <PayslipRow
+                  label={
+                    inputs && (inputs.undertimeMinutes ?? 0) > 0
+                      ? `Undertime (${inputs.undertimeMinutes} mins${inputs.undertimeDates ? ` — ${inputs.undertimeDates}` : ""})`
+                      : "Undertime"
+                  }
+                  value={formatDeduction(result.undertimeDeduction)}
                 />
                 <PayslipRow label="5% tax" value={formatPeso(result.tax)} />
                 <PayslipRow

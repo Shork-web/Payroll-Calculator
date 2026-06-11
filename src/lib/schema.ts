@@ -26,6 +26,7 @@ export const payrollNumericSchema = z.object({
   monthlyRate: coerceFormNumber().pipe(z.number().positive("Must be greater than 0")),
   workingDays: workingDaysField,
   lateMinutes: coerceFormNumber().pipe(z.number().min(0)),
+  undertimeMinutes: coerceFormNumber().pipe(z.number().min(0)),
   absentDays: coerceFormNumber().pipe(z.number().min(0)),
   overpayment: overpaymentField,
 })
@@ -33,6 +34,7 @@ export const payrollNumericSchema = z.object({
 const lateIncidentSchema = z.object({
   minutes: coerceFormNumber().pipe(z.number().min(0)),
   date: z.string().min(1, "Date/Day is required"),
+  type: z.enum(["late", "undertime"]).default("late"),
 })
 
 export const payrollSchema = z
@@ -44,11 +46,13 @@ export const payrollSchema = z
     monthlyRate: coerceFormNumber().pipe(z.number().positive("Must be greater than 0")),
     workingDays: workingDaysField,
     lateMinutes: coerceFormNumber().pipe(z.number().min(0)),
+    undertimeMinutes: coerceFormNumber().pipe(z.number().min(0)),
     absentDays: coerceFormNumber().pipe(z.number().min(0)),
     overpayment: overpaymentField,
     signatoryName: z.string().default("JAMES FRANCIENNE J. ROSIT"),
     signatoryTitle: z.string().default("OIC ADMIN"),
     lateDates: z.string().optional().default(""),
+    undertimeDates: z.string().optional().default(""),
     lateIncidents: z.array(lateIncidentSchema).default([]),
   })
   .refine((data) => data.periodEnd >= data.periodStart, {

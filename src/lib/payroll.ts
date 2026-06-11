@@ -21,12 +21,16 @@ export const SEMI_MONTHLY_EXEMPTION = roundUp(ANNUAL_EXEMPTION / 12 / 2)
 
 type PayrollComputationInput = Pick<
   PayrollInputs,
-  "monthlyRate" | "workingDays" | "periodStart" | "periodEnd" | "lateMinutes" | "absentDays" | "overpayment"
+  "monthlyRate" | "workingDays" | "periodStart" | "periodEnd" | "lateMinutes" | "undertimeMinutes" | "absentDays" | "overpayment"
 >
 
 /** Gross amount after HR rules (matches computePayroll). */
 export function estimateGrossPay(input: PayrollComputationInput): number {
-  const result = computePayroll(input)
+  const result = computePayroll({
+    ...input,
+    // Add defaults if they are missing
+    undertimeMinutes: input.undertimeMinutes ?? 0,
+  })
   return result.grossPay
 }
 
@@ -38,7 +42,7 @@ export function estimateMaxOverpayment(monthlyRate: number): number {
 }
 
 export function computePayroll(inputs: PayrollInputs): PayrollResult {
-  const { monthlyRate, workingDays, periodStart, periodEnd, lateMinutes, absentDays } = inputs
+  const { monthlyRate, workingDays, periodStart, periodEnd, lateMinutes, undertimeMinutes, absentDays } = inputs
   const overpayment = round(inputs.overpayment ?? 0)
 
   const periodWorkingDays = computeWorkingDaysInRange(periodStart, periodEnd)
@@ -49,8 +53,9 @@ export function computePayroll(inputs: PayrollInputs): PayrollResult {
   const earned = roundUp(monthlyRate / 2)
   const absentDeduction = roundUp(dailyRate * absentDays)
   const lateDeduction = roundUp(perMinRate * lateMinutes)
+  const undertimeDeduction = roundUp(perMinRate * (undertimeMinutes ?? 0))
 
-  const total = round(Math.max(0, earned - absentDeduction - lateDeduction))
+  const total = round(Math.max(0, earned - absentDeduction - lateDeduction - undertimeDeduction))
   const premium = roundUp(total * PREMIUM_RATE)
   const overpaymentPremium = roundUp(overpayment * PREMIUM_RATE)
 
@@ -58,7 +63,7 @@ export function computePayroll(inputs: PayrollInputs): PayrollResult {
   const taxableIncome = round(Math.max(0, grossPay - SEMI_MONTHLY_EXEMPTION))
   const tax = taxableIncome > 0 ? round(taxableIncome * TAX_RATE) : 0
 
-  const totalDeductions = round(absentDeduction + lateDeduction + overpayment + overpaymentPremium + tax)
+  const totalDeductions = round(absentDeduction + lateDeduction + undertimeDeduction + overpayment + overpaymentPremium + tax)
   const netPay = round(grossPay - tax)
 
   return {
@@ -75,6 +80,7 @@ export function computePayroll(inputs: PayrollInputs): PayrollResult {
     overpaymentPremium,
     absentDeduction,
     lateDeduction,
+    undertimeDeduction,
     taxableIncome,
     tax,
     totalDeductions,
