@@ -299,8 +299,8 @@ export async function exportPayrollPdf(
   y += netCardH + 12
 
   // 6. Double Signature Blocks (Conforme & Certified Correct)
-  const sigName = (employee.signatoryName || "JAMES FRANCIENNE J. ROSIT").toUpperCase()
-  const sigTitle = employee.signatoryTitle || "OIC ADMIN"
+  const sigName = (employee.signatoryName || "").toUpperCase()
+  const sigTitle = employee.signatoryTitle || ""
   const employeeNameStr = employee.name.toUpperCase()
 
   // Section Headers
