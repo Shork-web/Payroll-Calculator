@@ -30,6 +30,11 @@ export const payrollNumericSchema = z.object({
   overpayment: overpaymentField,
 })
 
+const lateIncidentSchema = z.object({
+  minutes: coerceFormNumber().pipe(z.number().min(0)),
+  date: z.string().min(1, "Date/Day is required"),
+})
+
 export const payrollSchema = z
   .object({
     name: z.string().min(1, "Name is required"),
@@ -41,6 +46,10 @@ export const payrollSchema = z
     lateMinutes: coerceFormNumber().pipe(z.number().min(0)),
     absentDays: coerceFormNumber().pipe(z.number().min(0)),
     overpayment: overpaymentField,
+    signatoryName: z.string().default("JAMES FRANCIENNE J. ROSIT"),
+    signatoryTitle: z.string().default("OIC ADMIN"),
+    lateDates: z.string().optional().default(""),
+    lateIncidents: z.array(lateIncidentSchema).default([]),
   })
   .refine((data) => data.periodEnd >= data.periodStart, {
     message: "End date must be on or after start date",

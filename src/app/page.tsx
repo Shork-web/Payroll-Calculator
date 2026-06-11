@@ -119,9 +119,9 @@ export default function Home() {
               {/* Dynamic Viewport */}
               <div className="transition-all duration-300">
                 {activeTab === "breakdown" ? (
-                  <PaySummary result={result} />
+                  <PaySummary result={result} inputs={inputs} />
                 ) : (
-                  <PayslipPreview employee={employee} result={result} />
+                  <PayslipPreview employee={employee} result={result} inputs={inputs} />
                 )}
               </div>
             </div>
@@ -133,6 +133,7 @@ export default function Home() {
       <PayslipPreview
         employee={employee}
         result={result}
+        inputs={inputs}
         className="print-only mx-auto w-full max-w-4xl print:max-w-none print:border-0 print:p-8"
       />
     </div>

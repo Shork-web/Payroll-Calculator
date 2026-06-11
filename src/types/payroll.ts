@@ -4,6 +4,8 @@ export interface EmployeeInfo {
   period: string
   periodStart: string
   periodEnd: string
+  signatoryName?: string
+  signatoryTitle?: string
 }
 
 export interface PayrollInputs {
@@ -15,6 +17,8 @@ export interface PayrollInputs {
   lateMinutes: number
   absentDays: number
   overpayment: number
+  lateDates?: string
+  lateIncidents?: Array<{ date: string; minutes: number }>
 }
 
 export interface PayrollResult {

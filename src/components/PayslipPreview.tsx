@@ -1,5 +1,5 @@
 import { formatPeso } from "@/lib/format"
-import type { EmployeeInfo, PayrollResult } from "@/types/payroll"
+import type { EmployeeInfo, PayrollInputs, PayrollResult } from "@/types/payroll"
 
 const cellClassName = "border border-gray-300 px-3 py-2 text-sm"
 const amountClassName = `${cellClassName} text-right tabular-nums`
@@ -8,10 +8,11 @@ const labelClassName = `${cellClassName} text-left`
 export interface PayslipPreviewProps {
   employee: EmployeeInfo | null
   result: PayrollResult | null
+  inputs?: PayrollInputs | null
   className?: string | undefined
 }
 
-export function PayslipPreview({ employee, result, className }: PayslipPreviewProps) {
+export function PayslipPreview({ employee, result, inputs, className }: PayslipPreviewProps) {
   const isReady = employee !== null && result !== null
 
   const sectionClassName = [
@@ -93,7 +94,11 @@ export function PayslipPreview({ employee, result, className }: PayslipPreviewPr
                   value={formatDeduction(result.absentDeduction)}
                 />
                 <PayslipRow
-                  label="Late/UT"
+                  label={
+                    inputs && inputs.lateMinutes > 0
+                      ? `Late/UT (${inputs.lateMinutes} mins${inputs.lateDates ? ` — ${inputs.lateDates}` : ""})`
+                      : "Late/UT"
+                  }
                   value={formatDeduction(result.lateDeduction)}
                 />
                 <PayslipRow label="5% tax" value={formatPeso(result.tax)} />

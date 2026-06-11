@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, type ReactNode } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, useFieldArray } from "react-hook-form"
 
 import { formatPayPeriod, getDefaultPayPeriod } from "@/lib/format"
 import { computePayroll } from "@/lib/payroll"
@@ -39,6 +39,9 @@ function createFormDefaultValues(): PayrollFormInput {
     lateMinutes: 0,
     absentDays: 0,
     overpayment: 0,
+    signatoryName: "JAMES FRANCIENNE J. ROSIT",
+    signatoryTitle: "OIC ADMIN",
+    lateDates: "",
   }
 }
 
@@ -57,6 +60,9 @@ const WATCHED_FIELDS = [
   "lateMinutes",
   "absentDays",
   "overpayment",
+  "signatoryName",
+  "signatoryTitle",
+  "lateDates",
 ] as const
 
 export interface PayrollFormProps {
@@ -67,6 +73,7 @@ export interface PayrollFormProps {
 export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
   const {
     register,
+    control,
     watch,
     reset,
     getValues,
@@ -77,13 +84,24 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
     defaultValues: FORM_DEFAULT_VALUES,
   })
 
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "lateIncidents",
+  })
+
   useEffect(() => {
     const runCompute = () => {
       const values = getValues()
+      const totalLateMinutes = (values.lateIncidents || []).reduce((sum, item) => sum + (Number(item.minutes) || 0), 0)
+      const computedLateDates = (values.lateIncidents || [])
+        .filter(item => item.date?.trim() && Number(item.minutes) > 0)
+        .map(item => `${item.date} (${item.minutes}m)`)
+        .join(", ")
+
       const numericParsed = payrollNumericSchema.safeParse({
         monthlyRate: values.monthlyRate,
         workingDays: values.workingDays,
-        lateMinutes: values.lateMinutes,
+        lateMinutes: totalLateMinutes,
         absentDays: values.absentDays,
         overpayment: values.overpayment,
       })
@@ -92,17 +110,17 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
         return
       }
 
-      const { name, position, periodStart, periodEnd } = values
+      const { name, position, periodStart, periodEnd, signatoryName, signatoryTitle } = values
       if (!name.trim() || !position.trim() || !periodStart || !periodEnd) {
         return
       }
 
-      const payrollInputs = { ...numericParsed.data, periodStart, periodEnd }
+      const payrollInputs = { ...numericParsed.data, periodStart, periodEnd, lateDates: computedLateDates, lateIncidents: values.lateIncidents }
       const period = formatPayPeriod(periodStart, periodEnd)
 
       onCompute(
         computePayroll(payrollInputs),
-        { name, position, period, periodStart, periodEnd },
+        { name, position, period, periodStart, periodEnd, signatoryName, signatoryTitle },
         payrollInputs,
       )
     }
@@ -190,6 +208,38 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
             </p>
           ) : null}
         </div>
+
+        <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          Signatory
+        </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field
+            id="signatoryName"
+            label="Signatory Name"
+            error={errors.signatoryName?.message}
+            input={
+              <input
+                id="signatoryName"
+                type="text"
+                className={inputClassName}
+                {...register("signatoryName")}
+              />
+            }
+          />
+          <Field
+            id="signatoryTitle"
+            label="Designation"
+            error={errors.signatoryTitle?.message}
+            input={
+              <input
+                id="signatoryTitle"
+                type="text"
+                className={inputClassName}
+                {...register("signatoryTitle")}
+              />
+            }
+          />
+        </div>
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -231,20 +281,67 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
 
         <p className={deductionsHeadingClassName}>Deductions</p>
 
-        <Field
-          id="lateMinutes"
-          label="Late / undertime (minutes)"
-          error={errors.lateMinutes?.message}
-          input={
-            <input
-              id="lateMinutes"
-              type="number"
-              step="any"
-              className={inputClassName}
-              {...register("lateMinutes", numberFieldOptions)}
-            />
-          }
-        />
+        <div className="col-span-full border border-gray-100 rounded-xl bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-900/30">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+              Late Incidents / Undertime Log
+            </span>
+            <button
+              type="button"
+              onClick={() => append({ minutes: 0, date: "" })}
+              className="text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 px-2.5 py-1.5 rounded-lg border border-emerald-200/50 hover:bg-emerald-100 transition-colors"
+            >
+              + Add Incident
+            </button>
+          </div>
+
+          {fields.length === 0 ? (
+            <p className="text-xs text-gray-500 dark:text-gray-400 italic text-center py-2">
+              No late incidents logged. Click &quot;+ Add Incident&quot; to log one.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {fields.map((field, index) => (
+                <div key={field.id} className="flex gap-3 items-end">
+                  <div className="flex-1">
+                    <label className="text-xs text-gray-500 dark:text-gray-400">Date/Day</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. June 4"
+                      className={inputClassName}
+                      {...register(`lateIncidents.${index}.date` as const)}
+                    />
+                    {errors.lateIncidents?.[index]?.date?.message && (
+                      <p className={errorClassName}>{errors.lateIncidents[index].date.message}</p>
+                    )}
+                  </div>
+                  <div className="w-28">
+                    <label className="text-xs text-gray-500 dark:text-gray-400">Minutes</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      className={inputClassName}
+                      {...register(`lateIncidents.${index}.minutes` as const, numberFieldOptions)}
+                    />
+                    {errors.lateIncidents?.[index]?.minutes?.message && (
+                      <p className={errorClassName}>{errors.lateIncidents[index].minutes.message}</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => remove(index)}
+                    className="p-2 mb-0.5 rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors dark:border-red-900/50 dark:text-red-400 dark:bg-red-950/20"
+                    title="Remove incident"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <Field
           id="absentDays"
           label="Absent days"

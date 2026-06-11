@@ -98,6 +98,14 @@ export async function exportTablePdf(
     margin: { top: 30, right: 10, left: 10, bottom: 10 }
   })
 
+  if (inputs.lateMinutes > 0 && inputs.lateDates) {
+    const pageHeight = doc.internal.pageSize.getHeight()
+    doc.setFont("helvetica", "italic")
+    doc.setFontSize(8)
+    doc.setTextColor(100, 116, 139)
+    doc.text(`Note: Late/Undertime of ${inputs.lateMinutes} mins on ${inputs.lateDates}`, 10, pageHeight - 10)
+  }
+
   // ── Save ──────────────────────────────────────────────────────────────────
   const safeName   = employee.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()
   const safePeriod = period.replace(/[^a-z0-9]/gi, "_").toLowerCase()

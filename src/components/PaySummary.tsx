@@ -2,7 +2,7 @@ import type { CSSProperties } from "react"
 
 import { formatPeso } from "@/lib/format"
 import { SEMI_MONTHLY_EXEMPTION } from "@/lib/payroll"
-import type { PayrollResult } from "@/types/payroll"
+import type { PayrollInputs, PayrollResult } from "@/types/payroll"
 
 const PLACEHOLDER = "—"
 
@@ -21,9 +21,10 @@ const sectionHeadingClassName =
 
 export interface PaySummaryProps {
   result: PayrollResult | null
+  inputs: PayrollInputs | null
 }
 
-export function PaySummary({ result }: PaySummaryProps) {
+export function PaySummary({ result, inputs }: PaySummaryProps) {
   const formatValue = (value: number | undefined) =>
     value === undefined ? PLACEHOLDER : formatPeso(value)
 
@@ -39,6 +40,10 @@ export function PaySummary({ result }: PaySummaryProps) {
 
   const exemptionLabel = `After ₱${formatPeso(SEMI_MONTHLY_EXEMPTION)} exemption`
   const displayGross = result ? result.total + result.premium : undefined
+
+  const lateSubtitle = result && inputs && inputs.lateMinutes > 0
+    ? `${inputs.lateMinutes} mins${inputs.lateDates ? ` — Late on ${inputs.lateDates}` : ""}`
+    : undefined
 
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-950">
@@ -81,6 +86,7 @@ export function PaySummary({ result }: PaySummaryProps) {
         />
         <MetricCard
           label="Less: Late/Undertime"
+          subtitle={lateSubtitle}
           value={formatValue(result?.lateDeduction)}
           valueClassName={deductionValueClass(result?.lateDeduction)}
         />
