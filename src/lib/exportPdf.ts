@@ -41,7 +41,7 @@ export async function exportPayrollPdf(
   // 1. Header with Republic of the Philippines branding
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8)
-  doc.setTextColor(100, 116, 139) // Slate-500
+  doc.setTextColor(0, 0, 0) // Black
   doc.text("REPUBLIC OF THE PHILIPPINES", pageW / 2, y, { align: "center" })
 
   y += 4.5
@@ -64,19 +64,19 @@ export async function exportPayrollPdf(
   y += 7.5
   doc.setFont("helvetica", "bold")
   doc.setFontSize(12)
-  doc.setTextColor(30, 41, 59) // Slate-800
+  doc.setTextColor(0, 0, 0) // Black
   doc.text("COMPUTATION OF SERVICES RENDERED", pageW / 2, y, { align: "center" })
 
   y += 5
   doc.setFont("helvetica", "normal")
   doc.setFontSize(9)
-  doc.setTextColor(71, 85, 105) // Slate-600
+  doc.setTextColor(0, 0, 0) // Black
   doc.text(`For the Period: ${period}`, pageW / 2, y, { align: "center" })
 
   y += 4.5
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8)
-  doc.setTextColor(148, 163, 184) // Slate-400
+  doc.setTextColor(0, 0, 0) // Black
   doc.text("OFFICIAL PAYROLL COMPUTATION RECORD", pageW / 2, y, { align: "center" })
 
   y += 7.5
@@ -96,28 +96,28 @@ export async function exportPayrollPdf(
   // Left Column: Employee Details (Stacked Layout)
   doc.setFont("helvetica", "bold")
   doc.setFontSize(7.5)
-  doc.setTextColor(100, 116, 139) // Slate-500
+  doc.setTextColor(0, 0, 0) // Black
   doc.text("EMPLOYEE INFORMATION", pageMargin + 6, y + 6)
 
   doc.setFont("helvetica", "normal")
   doc.setFontSize(7)
-  doc.setTextColor(148, 163, 184) // Slate-400
+  doc.setTextColor(0, 0, 0) // Black
   doc.text("NAME", pageMargin + 6, y + 12.5)
   
   doc.setFont("helvetica", "bold")
   doc.setFontSize(9)
-  doc.setTextColor(30, 41, 59) // Slate-800
+  doc.setTextColor(0, 0, 0) // Black
   const employeeName = employee.name.toUpperCase()
   doc.text(employeeName, pageMargin + 6, y + 17)
 
   doc.setFont("helvetica", "normal")
   doc.setFontSize(7)
-  doc.setTextColor(148, 163, 184) // Slate-400
+  doc.setTextColor(0, 0, 0) // Black
   doc.text("POSITION", pageMargin + 6, y + 23.5)
   
   doc.setFont("helvetica", "bold")
   doc.setFontSize(9)
-  doc.setTextColor(30, 41, 59)
+  doc.setTextColor(0, 0, 0) // Black
   const employeePosLines = wrapLines(doc, employee.position, midX - pageMargin - 12)
   let posLineY = y + 28
   employeePosLines.forEach((line) => {
@@ -128,7 +128,7 @@ export async function exportPayrollPdf(
   // Right Column: Pay Rates (Clean grid layout)
   doc.setFont("helvetica", "bold")
   doc.setFontSize(7.5)
-  doc.setTextColor(100, 116, 139) // Slate-500
+  doc.setTextColor(0, 0, 0) // Black
   doc.text("SALARY RATE DETAILS", midX + 6, y + 6)
 
   const rateRows: Array<[string, string]> = [
@@ -142,11 +142,11 @@ export async function exportPayrollPdf(
   rateRows.forEach(([label, value]) => {
     doc.setFont("helvetica", "normal")
     doc.setFontSize(8.5)
-    doc.setTextColor(100, 116, 139)
+    doc.setTextColor(0, 0, 0) // Black
     doc.text(label, midX + 6, rateY)
 
     doc.setFont("helvetica", "bold")
-    doc.setTextColor(30, 41, 59)
+    doc.setTextColor(0, 0, 0) // Black
     doc.text(value, RM - 6, rateY, { align: "right" })
     rateY += 5.5
   })
@@ -165,11 +165,11 @@ export async function exportPayrollPdf(
     doc.setFontSize(9)
     
     if (isLess) {
-      doc.setTextColor(185, 28, 28) // Red-700 for deductions/losses
+      doc.setTextColor(0, 0, 0) // Black (was Red-700)
     } else if (isBold) {
-      doc.setTextColor(30, 41, 59) // Slate-800
+      doc.setTextColor(0, 0, 0) // Black (was Slate-800)
     } else {
-      doc.setTextColor(71, 85, 105) // Slate-600
+      doc.setTextColor(0, 0, 0) // Black (was Slate-600)
     }
 
     const labelXPos = pageMargin + 4
@@ -211,14 +211,14 @@ export async function exportPayrollPdf(
     if (lateIncidentsOnly.length > 0) {
       doc.setFont("helvetica", "normal")
       doc.setFontSize(8)
-      doc.setTextColor(100, 116, 139) // Slate-500
+      doc.setTextColor(185, 28, 28) // Red-700
       
       lateIncidentsOnly.forEach((incident) => {
         if (incident.date?.trim() && Number(incident.minutes) > 0) {
           const incidentDeduction = Number(incident.minutes) * perMinRate
           doc.text(`• ${incident.date}`, pageMargin + 8, y - 1)
           doc.text(`${incident.minutes} mins`, pageMargin + 55, y - 1)
-          doc.text(`Php ${n(incidentDeduction)}`, amountCol - 4, y - 1, { align: "right" })
+          doc.text(n(incidentDeduction), amountCol - 4, y - 1, { align: "right" })
           y += 4.5
         }
       })
@@ -233,14 +233,14 @@ export async function exportPayrollPdf(
     if (undertimeIncidentsOnly.length > 0) {
       doc.setFont("helvetica", "normal")
       doc.setFontSize(8)
-      doc.setTextColor(100, 116, 139) // Slate-500
+      doc.setTextColor(185, 28, 28) // Red-700
       
       undertimeIncidentsOnly.forEach((incident) => {
         if (incident.date?.trim() && Number(incident.minutes) > 0) {
           const incidentDeduction = Number(incident.minutes) * perMinRate
           doc.text(`• ${incident.date}`, pageMargin + 8, y - 1)
           doc.text(`${incident.minutes} mins`, pageMargin + 55, y - 1)
-          doc.text(`Php ${n(incidentDeduction)}`, amountCol - 4, y - 1, { align: "right" })
+          doc.text(n(incidentDeduction), amountCol - 4, y - 1, { align: "right" })
           y += 4.5
         }
       })
@@ -306,7 +306,7 @@ export async function exportPayrollPdf(
   // Section Headers
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8.5)
-  doc.setTextColor(100, 116, 139) // Slate-500
+  doc.setTextColor(0, 0, 0) // Black
   doc.text("Conforme:", pageMargin + 4, y)
   doc.text("Certified Correct:", midX + 6, y)
 
@@ -319,28 +319,26 @@ export async function exportPayrollPdf(
   
   doc.setFont("helvetica", "bold")
   doc.setFontSize(9)
-  doc.setTextColor(30, 41, 59) // Slate-800
+  doc.setTextColor(0, 0, 0) // Black
   doc.text(employeeNameStr, pageMargin + 4, y + 4.5)
   
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8)
-  doc.setTextColor(100, 116, 139) // Slate-500
+  doc.setTextColor(0, 0, 0) // Black
   doc.text("Employee Signature", pageMargin + 4, y + 8)
-  doc.text("Date: __________________", pageMargin + 4, y + 12.5)
 
   // Right Column: Certified Signatory
   doc.line(midX + 6, y, RM - 4, y) // Signature Line
   
   doc.setFont("helvetica", "bold")
   doc.setFontSize(9)
-  doc.setTextColor(30, 41, 59) // Slate-800
+  doc.setTextColor(0, 0, 0) // Black
   doc.text(sigName, midX + 6, y + 4.5)
   
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8)
-  doc.setTextColor(100, 116, 139) // Slate-500
+  doc.setTextColor(0, 0, 0) // Black
   doc.text(sigTitle, midX + 6, y + 8)
-  doc.text("Date: __________________", midX + 6, y + 12.5)
 
   y += 20
 
@@ -352,7 +350,7 @@ export async function exportPayrollPdf(
   y += 6
   doc.setFont("helvetica", "italic")
   doc.setFontSize(8.5)
-  doc.setTextColor(148, 163, 184) // Slate-400
+  doc.setTextColor(0, 0, 0) // Black
   if (absentDays > 0 || lateMinutes > 0 || (undertimeMinutes ?? 0) > 0) {
     const baseLost = absentDeduction + lateDeduction + undertimeDeduction
     const premiumLost = baseLost * 0.20
@@ -371,3 +369,206 @@ export async function exportPayrollPdf(
   const dateEnd = inputs.periodEnd.split("T")[0]
   doc.save(`Payslip_${safeName}_${dateStart}_${dateEnd}.pdf`)
 }
+
+export async function exportPayslipPdf(
+  employee: EmployeeInfo,
+  result: PayrollResult,
+  inputs: PayrollInputs,
+): Promise<void> {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
+  const period = formatPayPeriod(inputs.periodStart, inputs.periodEnd)
+
+  const {
+    earned, total, premium,
+    overpayment, overpaymentPremium,
+    absentDeduction, lateDeduction, undertimeDeduction,
+    tax, netPay,
+  } = result
+  const { monthlyRate, lateMinutes, undertimeMinutes, absentDays } = inputs
+
+  // Draw payslip container box
+  const boxW = 180
+  const boxH = 102.5
+  const boxX = (210 - boxW) / 2
+  const boxY = 25
+
+  doc.setDrawColor(0, 0, 0)
+  doc.setLineWidth(0.35)
+  doc.rect(boxX, boxY, boxW, boxH)
+
+  // Header text
+  // 1. Republic of the Philippines
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(9)
+  doc.setTextColor(0, 0, 0)
+  doc.text("Republic of the Philippines", boxX + boxW / 2, boxY + 8, { align: "center" })
+
+  // 2. Philippine Fiber Industry Development Authority
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(12)
+  doc.setTextColor(40, 92, 50) // Premium dark green to match logo style
+  doc.text("Philippine Fiber Industry Development Authority", boxX + boxW / 2, boxY + 14, { align: "center" })
+
+  // 3. PAYSLIP
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(10)
+  doc.setTextColor(0, 0, 0)
+  doc.text("PAYSLIP", boxX + boxW / 2, boxY + 20, { align: "center" })
+
+  // Employee details
+  // Name:
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(10)
+  doc.text("Name: ", boxX + 8, boxY + 29)
+  const nameWidth = doc.getTextWidth("Name: ")
+  doc.setFont("helvetica", "bold")
+  doc.text(employee.name, boxX + 8 + nameWidth, boxY + 29)
+
+  // Position:
+  doc.setFont("helvetica", "normal")
+  doc.text(`Position: ${employee.position}`, boxX + 8, boxY + 35)
+
+  // Period:
+  doc.text(`Period: ${period}`, boxX + 8, boxY + 41)
+
+  // Table Top Y
+  const tableY = boxY + 45
+
+  // Draw horizontal rows lines:
+  // Row Heights:
+  // Header 0: 6mm
+  // Sub-header 1: 6mm
+  // Data Rows 2 to 8: 6.5mm each
+  const rowHeights = [6, 6, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5]
+  
+  // Outer/Inner Horizontal grid lines:
+  doc.setLineWidth(0.3)
+  for (let i = 0; i <= rowHeights.length; i++) {
+    const yLine = tableY + rowHeights.slice(0, i).reduce((sum, h) => sum + h, 0)
+    // Draw horizontal line from boxX to boxX + boxW
+    doc.line(boxX, yLine, boxX + boxW, yLine)
+  }
+
+  // Draw vertical lines:
+  // 1. Middle divider: splits left and right halves. Runs from tableY to tableY + tableH
+  const tableH = rowHeights.reduce((sum, h) => sum + h, 0)
+  doc.line(boxX + 90, tableY, boxX + 90, tableY + tableH)
+
+  // 2. Left divider: separates Earnings label and amount. Runs from tableY + 6 to tableY + tableH
+  doc.line(boxX + 62, tableY + 6, boxX + 62, tableY + tableH)
+
+  // 3. Right divider: separates Deductions label and amount. Runs from tableY + 6 to tableY + tableH
+  doc.line(boxX + 152, tableY + 6, boxX + 152, tableY + tableH)
+
+  // Draw Table Texts:
+  // 1. Header Row (tableY + 4.5): "Earnings:" (left) and "Deductions:" (right)
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(9)
+  doc.text("Earnings:", boxX + 2, tableY + 4.5)
+  doc.text("Deductions:", boxX + 92, tableY + 4.5)
+
+  // 2. Sub-header Row (tableY + 6 + 4.5 = tableY + 10.5): "Amount" in columns 2 and 4
+  doc.setFont("helvetica", "normal")
+  doc.text("Amount", boxX + 88, tableY + 10.5, { align: "right" })
+  doc.text("Amount", boxX + 178, tableY + 10.5, { align: "right" })
+
+  // Let's populate the data rows!
+  // Columns X coordinates:
+  // Col 1 label: boxX + 2
+  // Col 2 amount: boxX + 88 (right-aligned)
+  // Col 3 label: boxX + 92
+  // Col 4 amount: boxX + 178 (right-aligned)
+  
+  // Row heights mapping:
+  // Row 2: tableY + 12
+  // Row 3: tableY + 18.5
+  // Row 4: tableY + 25
+  // Row 5: tableY + 31.5
+  // Row 6: tableY + 38
+  // Row 7: tableY + 44.5
+  // Row 8: tableY + 51
+  
+  // Let's calculate absent/late/undertime description:
+  const totalMins = lateMinutes + (undertimeMinutes ?? 0)
+  let aluDesc = ""
+  if (absentDays > 0 && totalMins > 0) {
+    aluDesc = `${absentDays} day${absentDays !== 1 ? "s" : ""}, ${totalMins} min${totalMins !== 1 ? "s" : ""}`
+  } else if (absentDays > 0) {
+    aluDesc = `${absentDays} day${absentDays !== 1 ? "s" : ""}`
+  } else if (totalMins > 0) {
+    aluDesc = `${totalMins} min${totalMins !== 1 ? "s" : ""}`
+  } else {
+    aluDesc = ""
+  }
+
+  const aluCost = absentDeduction + lateDeduction + undertimeDeduction
+  const displayGross = total + premium
+
+  // Set font back to normal size 9
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(9)
+
+  // Row 2
+  let rowY = tableY + 12 + 4.5
+  doc.text("Rate/Month", boxX + 2, rowY)
+  doc.text(n(monthlyRate), boxX + 88, rowY, { align: "right" })
+  doc.text("Absent/Late/Undertime", boxX + 92, rowY)
+  if (aluDesc) {
+    doc.text(aluDesc, boxX + 178, rowY, { align: "right" })
+  }
+
+  // Row 3
+  rowY += 6.5
+  doc.text("Earned for the Period", boxX + 2, rowY)
+  doc.text(n(earned), boxX + 88, rowY, { align: "right" })
+  doc.text("Deductions", boxX + 92, rowY)
+  if (aluCost > 0) {
+    doc.text(n(aluCost), boxX + 178, rowY, { align: "right" })
+  }
+
+  // Row 4
+  rowY += 6.5
+  doc.text("20% Premium", boxX + 2, rowY)
+  doc.text(n(premium), boxX + 88, rowY, { align: "right" })
+  doc.text("5% tax", boxX + 92, rowY)
+  if (tax > 0) {
+    doc.text(n(tax), boxX + 178, rowY, { align: "right" })
+  }
+
+  // Row 5
+  rowY += 6.5
+  doc.text("Gross Pay", boxX + 2, rowY)
+  doc.text(n(displayGross), boxX + 88, rowY, { align: "right" })
+  doc.text("Overpayment", boxX + 92, rowY)
+  if (overpayment > 0) {
+    doc.text(n(overpayment), boxX + 178, rowY, { align: "right" })
+  }
+
+  // Row 6
+  rowY += 6.5
+  // Left side is empty
+  doc.text("Overpayment (premium)", boxX + 92, rowY)
+  if (overpaymentPremium > 0) {
+    doc.text(n(overpaymentPremium), boxX + 178, rowY, { align: "right" })
+  }
+
+  // Row 7 (rowY + 6.5) -> empty row on both sides
+  
+  // Row 8 (rowY + 13)
+  rowY += 13
+  // Left side is empty
+  doc.setFont("helvetica", "bold")
+  doc.text("Net Pay", boxX + 92, rowY)
+  doc.text(n(netPay), boxX + 178, rowY, { align: "right" })
+
+  // Save the PDF
+  const safeName = employee.name
+    .replace(/[^a-z0-9]/gi, "_")
+    .replace(/_+/g, "_")
+    .toLowerCase()
+    .trim()
+  const dateStart = inputs.periodStart.split("T")[0]
+  const dateEnd = inputs.periodEnd.split("T")[0]
+  doc.save(`Payslip_${safeName}_${dateStart}_${dateEnd}.pdf`)
+}
+

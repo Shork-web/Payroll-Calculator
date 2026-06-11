@@ -7,7 +7,7 @@ export const HOURS_PER_DAY = 8
 const PREMIUM_RATE = 0.2
 const TAX_RATE = 0.05
 
-const round = (n: number) => Math.round(n * 100) / 100
+const round = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
 
 /** Round up to 2 decimal places (favors employee on earnings). */
 export const roundUp = (n: number) => {
@@ -56,8 +56,8 @@ export function computePayroll(inputs: PayrollInputs): PayrollResult {
   const undertimeDeduction = roundUp(perMinRate * (undertimeMinutes ?? 0))
 
   const total = round(Math.max(0, earned - absentDeduction - lateDeduction - undertimeDeduction))
-  const premium = roundUp(total * PREMIUM_RATE)
-  const overpaymentPremium = roundUp(overpayment * PREMIUM_RATE)
+  const premium = round(total * PREMIUM_RATE)
+  const overpaymentPremium = round(overpayment * PREMIUM_RATE)
 
   const grossPay = round(total + premium - overpayment - overpaymentPremium)
   const taxableIncome = round(Math.max(0, grossPay - SEMI_MONTHLY_EXEMPTION))

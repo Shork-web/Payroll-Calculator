@@ -22,9 +22,10 @@ const sectionHeadingClassName =
 export interface PaySummaryProps {
   result: PayrollResult | null
   inputs: PayrollInputs | null
+  action?: React.ReactNode
 }
 
-export function PaySummary({ result, inputs }: PaySummaryProps) {
+export function PaySummary({ result, inputs, action }: PaySummaryProps) {
   const formatValue = (value: number | undefined) =>
     value === undefined ? PLACEHOLDER : formatPeso(value)
 
@@ -51,9 +52,12 @@ export function PaySummary({ result, inputs }: PaySummaryProps) {
 
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-950">
-      <h2 className="mb-6 text-lg font-semibold text-gray-900 dark:text-gray-100">
-        Pay summary
-      </h2>
+      <div className="flex justify-between items-center mb-6 gap-4">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          Pay summary
+        </h2>
+        {action}
+      </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* RATE DERIVATION */}
