@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useState } from "react"
-
+import { Box, Container, Typography, Stack, Paper, Chip, Avatar, useTheme } from "@mui/material"
 import { ExportButton } from "@/components/ExportButton"
 import { PayrollForm } from "@/components/PayrollForm"
 import { PaySummary } from "@/components/PaySummary"
@@ -10,6 +10,7 @@ import type { EmployeeInfo, PayrollInputs, PayrollResult } from "@/types/payroll
 import logo from "./COS-LOGO.png"
 
 export default function Home() {
+  const theme = useTheme()
   const [result, setResult] = useState<PayrollResult | null>(null)
   const [employee, setEmployee] = useState<EmployeeInfo | null>(null)
   const [inputs, setInputs] = useState<PayrollInputs | null>(null)
@@ -30,60 +31,113 @@ export default function Home() {
   }, [])
 
   const canExport = employee !== null && result !== null && inputs !== null
+  const mode = theme.palette.mode
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-950 font-sans selection:bg-emerald-500/30">
+    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
       {/* Premium Dark Green Banner */}
-      <div className="absolute inset-x-0 top-0 h-64 bg-gradient-to-br from-emerald-800 via-emerald-900 to-emerald-950 no-print shadow-lg" />
+      <Box
+        sx={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: 0,
+          height: 256,
+          background: mode === "dark" 
+            ? "linear-gradient(135deg, #065f46 0%, #064e3b 50%, #022c22 100%)"
+            : "linear-gradient(135deg, #059669 0%, #047857 50%, #065f46 100%)",
+          zIndex: 0,
+        }}
+      />
 
-      <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <Container maxWidth="xl" sx={{ position: "relative", zIndex: 1, py: 4 }}>
         {/* Header */}
-        <header className="mb-10 no-print flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left border-b border-white/10 pb-6">
-          <div className="flex items-center justify-center md:justify-start gap-4">
-            <img src={logo.src} alt="COS Logo" className="h-24 w-auto rounded-full" />
-            <div>
-              <div className="flex items-center justify-center md:justify-start gap-2">
-                <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <p className="text-xs font-semibold uppercase tracking-widest text-emerald-300">
-                  Philippine Fiber Industry Development Authority
-                </p>
-              </div>
-              <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+        <Paper
+          elevation={0}
+          sx={{
+            mb: 4,
+            p: 3,
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 2,
+            bgcolor: "transparent",
+            borderBottom: 1,
+            borderColor: "rgba(255,255,255,0.1)",
+          }}
+        >
+          <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: "center", gap: 3 }}>
+            <Avatar
+              src={logo.src}
+              alt="COS Logo"
+              sx={{ width: 96, height: 96 }}
+            />
+            <Box sx={{ textAlign: { xs: "center", md: "left" } }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, justifyContent: { xs: "center", md: "flex-start" } }}>
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    bgcolor: "#34d399",
+                    animation: "pulse 2s infinite",
+                    "@keyframes pulse": {
+                      "0%, 100%": { opacity: 1 },
+                      "50%": { opacity: 0.5 },
+                    },
+                  }}
+                />
+                <Chip
+                  label="Philippine Fiber Industry Development Authority"
+                  size="small"
+                  sx={{
+                    bgcolor: "rgba(52, 211, 153, 0.1)",
+                    color: "#6ee7b7",
+                    fontWeight: 600,
+                    fontSize: "0.75rem",
+                    letterSpacing: 1,
+                  }}
+                />
+              </Box>
+              <Typography variant="h3" sx={{ mt: 1, fontWeight: 800, color: "white" }}>
                 COS Salary Calculator
-              </h1>
-              <p className="mt-2 text-sm text-emerald-100/70">
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 0.5, color: "rgba(167, 243, 208, 0.7)" }}>
                 Contract of Service — Semi-monthly computation payroll engine
-              </p>
-            </div>
-          </div>
+              </Typography>
+            </Box>
+          </Box>
           <ThemeToggle />
-        </header>
+        </Paper>
 
         {/* Core Layout Grid */}
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
+        <Box sx={{ display: "flex", flexDirection: { xs: "column", lg: "row" }, gap: 3 }}>
           {/* Left Column: Form Panel */}
-          <div className="no-print w-full lg:w-2/5 lg:sticky lg:top-8">
+          <Box sx={{ flex: { lg: "0 0 40%" }, position: { lg: "sticky" }, top: 32 }}>
             <PayrollForm onCompute={handleCompute} onReset={handleReset} />
-          </div>
+          </Box>
 
           {/* Right Column: Dynamic Output Panel */}
-          <div className="flex w-full flex-col gap-6 lg:w-3/5">
-            <PaySummary
-              result={result}
-              inputs={inputs}
-              action={
-                canExport ? (
-                  <ExportButton
-                    employee={employee}
-                    result={result}
-                    inputs={inputs}
-                  />
-                ) : null
-              }
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+          <Box sx={{ flex: { lg: 1 } }}>
+            <Stack spacing={3}>
+              <PaySummary
+                result={result}
+                inputs={inputs}
+                action={
+                  canExport ? (
+                    <ExportButton
+                      employee={employee}
+                      result={result}
+                      inputs={inputs}
+                    />
+                  ) : null
+                }
+              />
+            </Stack>
+          </Box>
+        </Box>
+      </Container>
+    </Box>
   )
 }

@@ -3,6 +3,23 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, type ReactNode } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
+import {
+  Box,
+  TextField,
+  Typography,
+  Button,
+  Paper,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  IconButton,
+  Grid,
+  Stack,
+  Divider,
+  useTheme,
+} from "@mui/material"
+import { Delete as DeleteIcon } from "@mui/icons-material"
 
 import { formatPayPeriod, getDefaultPayPeriod } from "@/lib/format"
 import { computePayroll } from "@/lib/payroll"
@@ -14,18 +31,6 @@ import {
   type PayrollSchema,
 } from "@/lib/schema"
 import type { EmployeeInfo, PayrollInputs, PayrollResult } from "@/types/payroll"
-
-const inputClassName =
-  "mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-
-const labelClassName = "block text-sm font-medium text-gray-700 dark:text-gray-300"
-
-const errorClassName = "mt-1 text-sm text-red-600 dark:text-red-400"
-
-const helperClassName = "mt-1 text-xs text-gray-500 dark:text-gray-400"
-
-const deductionsHeadingClassName =
-  "col-span-full mt-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
 
 function createFormDefaultValues(): PayrollFormInput {
   const period = getDefaultPayPeriod()
@@ -50,9 +55,6 @@ function createFormDefaultValues(): PayrollFormInput {
 
 const FORM_DEFAULT_VALUES = createFormDefaultValues()
 
-const resetButtonClassName =
-  "mt-6 w-full rounded-md border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
-
 const WATCHED_FIELDS = [
   "name",
   "position",
@@ -74,6 +76,9 @@ export interface PayrollFormProps {
 }
 
 export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
+  const theme = useTheme()
+  const mode = theme.palette.mode
+
   const {
     register,
     control,
@@ -177,283 +182,233 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
       : null
 
   return (
-    <form className="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-950">
-      <h2 className="mb-6 text-lg font-semibold text-gray-900 dark:text-gray-100">
+    <Paper sx={{ p: 3, elevation: 2 }}>
+      <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
         Employee &amp; attendance
-      </h2>
+      </Typography>
 
-      <div className="flex flex-col gap-4">
-        <Field
+      <Stack spacing={3}>
+        <TextField
           id="name"
           label="Name"
-          error={errors.name?.message}
-          input={<input id="name" type="text" className={inputClassName} {...register("name")} />}
+          fullWidth
+          error={!!errors.name?.message}
+          helperText={errors.name?.message}
+          {...register("name")}
         />
-        <Field
+        <TextField
           id="position"
           label="Position"
-          error={errors.position?.message}
-          input={
-            <input
-              id="position"
-              type="text"
-              className={inputClassName}
-              {...register("position")}
-            />
-          }
+          fullWidth
+          error={!!errors.position?.message}
+          helperText={errors.position?.message}
+          {...register("position")}
         />
-        <div>
-          <p className={labelClassName}>Pay period</p>
-          <div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label htmlFor="periodStart" className="text-xs text-gray-500 dark:text-gray-400">
-                Start date
-              </label>
-              <input
+        <Box>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>Pay period</Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+            <Box>
+              <TextField
                 id="periodStart"
+                label="Start date"
                 type="date"
-                className={inputClassName}
-                {...register("periodStart")}
+                fullWidth
+                slotProps={{ htmlInput: { ...register("periodStart") } }}
+                error={!!errors.periodStart?.message}
+                helperText={errors.periodStart?.message}
               />
-              {errors.periodStart?.message ? (
-                <p className={errorClassName}>{errors.periodStart.message}</p>
-              ) : null}
-            </div>
-            <div>
-              <label htmlFor="periodEnd" className="text-xs text-gray-500 dark:text-gray-400">
-                End date
-              </label>
-              <input
+            </Box>
+            <Box>
+              <TextField
                 id="periodEnd"
+                label="End date"
                 type="date"
-                className={inputClassName}
-                {...register("periodEnd")}
+                fullWidth
+                slotProps={{ htmlInput: { ...register("periodEnd") } }}
+                error={!!errors.periodEnd?.message}
+                helperText={errors.periodEnd?.message}
               />
-              {errors.periodEnd?.message ? (
-                <p className={errorClassName}>{errors.periodEnd.message}</p>
-              ) : null}
-            </div>
-          </div>
-          {cutoffWorkingDays !== null ? (
-            <p className={helperClassName}>
+            </Box>
+          </Box>
+          {cutoffWorkingDays !== null && (
+            <Typography variant="caption" sx={{ mt: 1, display: "block", color: "text.secondary" }}>
               Weekdays in this cutoff: {cutoffWorkingDays} (used for earned pay)
-            </p>
-          ) : null}
-        </div>
+            </Typography>
+          )}
+        </Box>
 
-        <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <Divider />
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: 1 }}>
           Signatory
-        </p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field
+        </Typography>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+          <TextField
             id="signatoryName"
             label="Signatory Name"
-            error={errors.signatoryName?.message}
-            input={
-              <input
-                id="signatoryName"
-                type="text"
-                className={inputClassName}
-                {...register("signatoryName")}
-              />
-            }
+            fullWidth
+            error={!!errors.signatoryName?.message}
+            helperText={errors.signatoryName?.message}
+            {...register("signatoryName")}
           />
-          <Field
+          <TextField
             id="signatoryTitle"
             label="Designation"
-            error={errors.signatoryTitle?.message}
-            input={
-              <input
-                id="signatoryTitle"
-                type="text"
-                className={inputClassName}
-                {...register("signatoryTitle")}
-              />
-            }
+            fullWidth
+            error={!!errors.signatoryTitle?.message}
+            helperText={errors.signatoryTitle?.message}
+            {...register("signatoryTitle")}
           />
-        </div>
-      </div>
+        </Box>
+      </Stack>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field
+      <Divider sx={{ my: 3 }} />
+
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+        <TextField
           id="monthlyRate"
           label="Monthly rate"
-          error={errors.monthlyRate?.message}
-          input={
-            <input
-              id="monthlyRate"
-              type="number"
-              step="any"
-              className={inputClassName}
-              {...register("monthlyRate", numberFieldOptions)}
-            />
-          }
+          type="number"
+          fullWidth
+          slotProps={{ htmlInput: { step: "any" } }}
+          error={!!errors.monthlyRate?.message}
+          helperText={errors.monthlyRate?.message}
+          {...register("monthlyRate", numberFieldOptions)}
         />
 
-        <Field
+        <TextField
           id="workingDays"
           label="Working days this month"
-          error={errors.workingDays?.message}
-          input={
-            <input
-              id="workingDays"
-              type="number"
-              step="1"
-              min={1}
-              max={31}
-              placeholder="Enter working days for this month"
-              className={inputClassName}
-              {...register("workingDays", numberFieldOptions)}
-            />
-          }
+          type="number"
+          fullWidth
+          slotProps={{ htmlInput: { step: 1, min: 1, max: 31 } }}
+          placeholder="Enter working days for this month"
+          error={!!errors.workingDays?.message}
+          helperText={errors.workingDays?.message}
+          {...register("workingDays", numberFieldOptions)}
         />
-        <p className={helperClassName + " -mt-2 sm:col-span-2"}>
-          Divides monthly rate to get daily rate
-        </p>
+        <Box sx={{ gridColumn: { xs: "1 / -1", sm: "1 / -1" } }}>
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+            Divides monthly rate to get daily rate
+          </Typography>
+        </Box>
 
-        <p className={deductionsHeadingClassName}>Deductions</p>
+        <Box sx={{ gridColumn: { xs: "1 / -1", sm: "1 / -1" } }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: 1, mt: 2 }}>
+            Deductions
+          </Typography>
+        </Box>
 
-        <div className="col-span-full border border-gray-100 rounded-xl bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-900/30">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-              Late Incidents / Undertime Log
-            </span>
-            <button
-              type="button"
-              onClick={() => append({ minutes: 0, date: "", type: "late" })}
-              className="text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 px-2.5 py-1.5 rounded-lg border border-emerald-200/50 hover:bg-emerald-100 transition-colors"
-            >
-              + Add Incident
-            </button>
-          </div>
+        <Box sx={{ gridColumn: { xs: "1 / -1", sm: "1 / -1" } }}>
+          <Paper variant="outlined" sx={{ p: 2, bgcolor: mode === "dark" ? "rgba(255, 255, 255, 0.03)" : "grey.50" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                Late Incidents / Undertime Log
+              </Typography>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => append({ minutes: 0, date: "", type: "late" })}
+                sx={{ fontSize: "0.75rem" }}
+              >
+                + Add Incident
+              </Button>
+            </Box>
 
-          {fields.length === 0 ? (
-            <p className="text-xs text-gray-500 dark:text-gray-400 italic text-center py-2">
-              No late incidents logged. Click &quot;+ Add Incident&quot; to log one.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {fields.map((field, index) => (
-                <div key={field.id} className="flex gap-3 items-end">
-                  <div className="flex-1">
-                    <label className="text-xs text-gray-500 dark:text-gray-400">Date/Day</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. June 4"
-                      className={inputClassName}
-                      {...register(`lateIncidents.${index}.date` as const)}
-                    />
-                    {errors.lateIncidents?.[index]?.date?.message && (
-                      <p className={errorClassName}>{errors.lateIncidents[index].date.message}</p>
-                    )}
-                  </div>
-                  <div className="w-32">
-                    <label className="text-xs text-gray-500 dark:text-gray-400">Type</label>
-                    <select
-                      className={inputClassName}
-                      {...register(`lateIncidents.${index}.type` as const)}
+            {fields.length === 0 ? (
+              <Typography variant="caption" sx={{ display: "block", textAlign: "center", py: 2, fontStyle: "italic", color: "text.secondary" }}>
+                No late incidents logged. Click &quot;+ Add Incident&quot; to log one.
+              </Typography>
+            ) : (
+              <Stack spacing={2}>
+                {fields.map((field, index) => (
+                  <Box key={field.id} sx={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="caption" sx={{ display: "block", mb: 0.5 }}>Date/Day</Typography>
+                      <TextField
+                        size="small"
+                        placeholder="e.g. June 4"
+                        fullWidth
+                        error={!!errors.lateIncidents?.[index]?.date?.message}
+                        helperText={errors.lateIncidents?.[index]?.date?.message}
+                        {...register(`lateIncidents.${index}.date` as const)}
+                      />
+                    </Box>
+                    <Box sx={{ width: 120 }}>
+                      <Typography variant="caption" sx={{ display: "block", mb: 0.5 }}>Type</Typography>
+                      <FormControl fullWidth size="small">
+                        <Select
+                          {...register(`lateIncidents.${index}.type` as const)}
+                          error={!!errors.lateIncidents?.[index]?.type?.message}
+                        >
+                          <MenuItem value="late">Late</MenuItem>
+                          <MenuItem value="undertime">Undertime</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Box>
+                    <Box sx={{ width: 90 }}>
+                      <Typography variant="caption" sx={{ display: "block", mb: 0.5 }}>Minutes</Typography>
+                      <TextField
+                        size="small"
+                        type="number"
+                        placeholder="0"
+                        fullWidth
+                        error={!!errors.lateIncidents?.[index]?.minutes?.message}
+                        helperText={errors.lateIncidents?.[index]?.minutes?.message}
+                        {...register(`lateIncidents.${index}.minutes` as const, numberFieldOptions)}
+                      />
+                    </Box>
+                    <IconButton
+                      onClick={() => remove(index)}
+                      sx={{ mb: 0.5, color: "error.main" }}
+                      title="Remove incident"
                     >
-                      <option value="late">Late</option>
-                      <option value="undertime">Undertime</option>
-                    </select>
-                    {errors.lateIncidents?.[index]?.type?.message && (
-                      <p className={errorClassName}>{errors.lateIncidents[index].type.message}</p>
-                    )}
-                  </div>
-                  <div className="w-24">
-                    <label className="text-xs text-gray-500 dark:text-gray-400">Minutes</label>
-                    <input
-                      type="number"
-                      placeholder="0"
-                      className={inputClassName}
-                      {...register(`lateIncidents.${index}.minutes` as const, numberFieldOptions)}
-                    />
-                    {errors.lateIncidents?.[index]?.minutes?.message && (
-                      <p className={errorClassName}>{errors.lateIncidents[index].minutes.message}</p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => remove(index)}
-                    className="p-2 mb-0.5 rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors dark:border-red-900/50 dark:text-red-400 dark:bg-red-950/20"
-                    title="Remove incident"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <Field
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                ))}
+              </Stack>
+            )}
+          </Paper>
+        </Box>
+        <TextField
           id="absentDays"
           label="Absent days"
-          error={errors.absentDays?.message}
-          input={
-            <input
-              id="absentDays"
-              type="number"
-              step="any"
-              className={inputClassName}
-              {...register("absentDays", numberFieldOptions)}
-            />
-          }
+          type="number"
+          fullWidth
+          slotProps={{ htmlInput: { step: "any" } }}
+          error={!!errors.absentDays?.message}
+          helperText={errors.absentDays?.message}
+          {...register("absentDays", numberFieldOptions)}
         />
-        <div>
-          <label htmlFor="overpayment" className={labelClassName}>
-            Overpayment
-          </label>
-          <input
+        <Box>
+          <TextField
             id="overpayment"
+            label="Overpayment"
             type="number"
-            step="any"
+            fullWidth
+            slotProps={{ htmlInput: { step: "any" } }}
             placeholder="0"
-            className={inputClassName}
+            error={!!errors.overpayment?.message}
+            helperText={errors.overpayment?.message}
             {...register("overpayment", numberFieldOptions)}
           />
-          <p className={helperClassName}>
+          <Typography variant="caption" sx={{ mt: 1, display: "block", color: "text.secondary" }}>
             Deducted from gross; 20% premium on overpayment is also deducted
-          </p>
-          {errors.overpayment?.message ? (
-            <p className={errorClassName}>{errors.overpayment.message}</p>
-          ) : null}
-        </div>
-      </div>
+          </Typography>
+        </Box>
+      </Box>
 
-      <button
-        type="button"
-        className={resetButtonClassName}
+      <Button
+        variant="outlined"
+        fullWidth
+        sx={{ mt: 3 }}
         onClick={() => {
           reset(createFormDefaultValues())
           onReset()
         }}
       >
         Reset
-      </button>
-    </form>
-  )
-}
-
-function Field({
-  id,
-  label,
-  error,
-  input,
-}: {
-  id: string
-  label: string
-  error?: string | undefined
-  input: ReactNode
-}) {
-  return (
-    <div>
-      <label htmlFor={id} className={labelClassName}>
-        {label}
-      </label>
-      {input}
-      {error ? <p className={errorClassName}>{error}</p> : null}
-    </div>
+      </Button>
+    </Paper>
   )
 }

@@ -1,23 +1,11 @@
 import type { CSSProperties } from "react"
+import { Box, Typography, Paper, Stack, Divider, useTheme } from "@mui/material"
 
 import { formatPeso } from "@/lib/format"
 import { SEMI_MONTHLY_EXEMPTION } from "@/lib/payroll"
 import type { PayrollInputs, PayrollResult } from "@/types/payroll"
 
 const PLACEHOLDER = "—"
-
-const cardClassName =
-  "rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900"
-
-const labelClassName = "text-sm font-medium text-gray-600 dark:text-gray-400"
-
-const metricValueClassName =
-  "mt-1 text-lg font-semibold text-gray-900 dark:text-gray-100"
-
-const subtitleClassName = "mt-0.5 text-xs text-gray-500 dark:text-gray-400"
-
-const sectionHeadingClassName =
-  "col-span-full border-t border-gray-200 pt-4 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:text-gray-400"
 
 export interface PaySummaryProps {
   result: PayrollResult | null
@@ -26,18 +14,11 @@ export interface PaySummaryProps {
 }
 
 export function PaySummary({ result, inputs, action }: PaySummaryProps) {
+  const theme = useTheme()
+  const mode = theme.palette.mode
+
   const formatValue = (value: number | undefined) =>
     value === undefined ? PLACEHOLDER : formatPeso(value)
-
-  const deductionValueClass = (value: number | undefined) => {
-    if (value === undefined) {
-      return metricValueClassName
-    }
-    if (value > 0) {
-      return `${metricValueClassName} text-red-600 dark:text-red-400`
-    }
-    return `${metricValueClassName} text-gray-400 dark:text-gray-500`
-  }
 
   const exemptionLabel = `After ₱${formatPeso(SEMI_MONTHLY_EXEMPTION)} exemption`
   const displayGross = result ? result.total + result.premium : undefined
@@ -51,17 +32,19 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
     : undefined
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-md dark:border-gray-700 dark:bg-gray-950">
-      <div className="flex justify-between items-center mb-6 gap-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+    <Paper sx={{ p: 3, elevation: 2 }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: 600 }}>
           Pay summary
-        </h2>
+        </Typography>
         {action}
-      </div>
+      </Box>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" }, gap: 2 }}>
         {/* RATE DERIVATION */}
-        <p className={sectionHeadingClassName}>Rate Derivation</p>
+        <Typography variant="caption" sx={{ gridColumn: "1 / -1", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, mt: 2 }}>
+          Rate Derivation
+        </Typography>
         <MetricCard
           label="Working days this month"
           subtitle="Determines daily divisor"
@@ -81,7 +64,9 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
         />
 
         {/* COMPUTATION */}
-        <p className={sectionHeadingClassName}>Computation</p>
+        <Typography variant="caption" sx={{ gridColumn: "1 / -1", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, mt: 2 }}>
+          Computation
+        </Typography>
         <MetricCard
           label="Earned Pay"
           subtitle="Monthly rate ÷ 2 (fixed base)"
@@ -90,16 +75,16 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
         <MetricCard
           label="Less: Absent"
           value={formatValue(result?.absentDeduction)}
-          valueClassName={deductionValueClass(result?.absentDeduction)}
+          valueColor={result?.absentDeduction && result.absentDeduction > 0 ? "error" : "text.disabled"}
         />
         <MetricCard
           label="Less: Late"
           subtitle={lateSubtitle}
           value={formatValue(result?.lateDeduction)}
-          valueClassName={deductionValueClass(result?.lateDeduction)}
+          valueColor={result?.lateDeduction && result.lateDeduction > 0 ? "error" : "text.disabled"}
         >
           {result && inputs && inputs.lateIncidents && inputs.lateIncidents.length > 0 && (
-            <div className="mt-3 pt-2 border-t border-gray-200/50 dark:border-gray-800/50 flex flex-col gap-1 text-xs">
+            <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: "divider", display: "flex", flexDirection: "column", gap: 1 }}>
               {inputs.lateIncidents
                 .filter((incident) => incident.type === "late")
                 .map((incident, index) => {
@@ -108,23 +93,23 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
                   }
                   const incidentDeduction = Number(incident.minutes) * result.perMinRate
                   return (
-                    <div key={index} className="flex justify-between text-gray-500 dark:text-gray-400">
+                    <Box key={index} sx={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "text.secondary" }}>
                       <span>• {incident.date} ({incident.minutes} mins)</span>
-                      <span className="font-medium tabular-nums">{formatPeso(incidentDeduction)}</span>
-                    </div>
+                      <Typography sx={{ fontWeight: 600 }}>{formatPeso(incidentDeduction)}</Typography>
+                    </Box>
                   )
                 })}
-            </div>
+            </Box>
           )}
         </MetricCard>
         <MetricCard
           label="Less: Undertime"
           subtitle={undertimeSubtitle}
           value={formatValue(result?.undertimeDeduction)}
-          valueClassName={deductionValueClass(result?.undertimeDeduction)}
+          valueColor={result?.undertimeDeduction && result.undertimeDeduction > 0 ? "error" : "text.disabled"}
         >
           {result && inputs && inputs.lateIncidents && inputs.lateIncidents.length > 0 && (
-            <div className="mt-3 pt-2 border-t border-gray-200/50 dark:border-gray-800/50 flex flex-col gap-1 text-xs">
+            <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: "divider", display: "flex", flexDirection: "column", gap: 1 }}>
               {inputs.lateIncidents
                 .filter((incident) => incident.type === "undertime")
                 .map((incident, index) => {
@@ -133,13 +118,13 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
                   }
                   const incidentDeduction = Number(incident.minutes) * result.perMinRate
                   return (
-                    <div key={index} className="flex justify-between text-gray-500 dark:text-gray-400">
+                    <Box key={index} sx={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "text.secondary" }}>
                       <span>• {incident.date} ({incident.minutes} mins)</span>
-                      <span className="font-medium tabular-nums">{formatPeso(incidentDeduction)}</span>
-                    </div>
+                      <Typography sx={{ fontWeight: 600 }}>{formatPeso(incidentDeduction)}</Typography>
+                    </Box>
                   )
                 })}
-            </div>
+            </Box>
           )}
         </MetricCard>
         <MetricCard
@@ -155,11 +140,13 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
           label="Gross Pay"
           subtitle="Sub-total + Premium"
           value={formatValue(displayGross)}
-          className="bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/30"
+          sx={{ bgcolor: mode === "dark" ? "rgba(5, 150, 105, 0.15)" : "rgba(5, 150, 105, 0.08)", borderColor: "success.main" }}
         />
 
         {/* DEDUCTIONS */}
-        <p className={sectionHeadingClassName}>Deductions from Gross Pay</p>
+        <Typography variant="caption" sx={{ gridColumn: "1 / -1", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, mt: 2 }}>
+          Deductions from Gross Pay
+        </Typography>
         <MetricCard
           label="Taxable Income"
           subtitle={exemptionLabel}
@@ -168,31 +155,33 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
         <MetricCard
           label="Less: 5% Withholding Tax"
           value={formatValue(result?.tax)}
-          valueClassName={deductionValueClass(result?.tax)}
+          valueColor={result?.tax && result.tax > 0 ? "error" : "text.disabled"}
         />
         <MetricCard
           label="Less: Overpayment"
           value={formatValue(result?.overpayment)}
-          valueClassName={deductionValueClass(result?.overpayment)}
+          valueColor={result?.overpayment && result.overpayment > 0 ? "error" : "text.disabled"}
         />
         <MetricCard
           label="Less: Overpayment Premium"
           subtitle="20% of Overpayment"
           value={formatValue(result?.overpaymentPremium)}
-          valueClassName={deductionValueClass(result?.overpaymentPremium)}
+          valueColor={result?.overpaymentPremium && result.overpaymentPremium > 0 ? "error" : "text.disabled"}
         />
 
         {/* RESULT */}
-        <p className={sectionHeadingClassName}>Result</p>
+        <Typography variant="caption" sx={{ gridColumn: "1 / -1", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, mt: 2 }}>
+          Result
+        </Typography>
         <MetricCard
           label="Net Amount"
           value={formatValue(result?.netPay)}
-          valueClassName="mt-1 font-bold text-emerald-700 dark:text-emerald-400"
+          valueColor="success"
           valueStyle={{ fontSize: "28px" }}
-          className="sm:col-span-2 lg:col-span-3 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800"
+          sx={{ gridColumn: { xs: "1 / -1", sm: "1 / -1", lg: "1 / -1" }, bgcolor: mode === "dark" ? "rgba(5, 150, 105, 0.15)" : "rgba(5, 150, 105, 0.08)", borderColor: "success.main" }}
         />
-      </div>
-    </section>
+      </Box>
+    </Paper>
   )
 }
 
@@ -200,27 +189,29 @@ function MetricCard({
   label,
   subtitle,
   value,
-  valueClassName = metricValueClassName,
+  valueColor,
   valueStyle,
-  className,
+  sx,
   children,
 }: {
   label: string
   subtitle?: string | undefined
   value: string
-  valueClassName?: string | undefined
+  valueColor?: "error" | "success" | "text.disabled" | "text.secondary" | undefined
   valueStyle?: CSSProperties | undefined
-  className?: string | undefined
+  sx?: object | undefined
   children?: React.ReactNode | undefined
 }) {
   return (
-    <article className={`${cardClassName} ${className ?? ""}`.trim()}>
-      <p className={labelClassName}>{label}</p>
-      {subtitle ? <p className={subtitleClassName}>{subtitle}</p> : null}
-      <p className={valueClassName} style={valueStyle}>
+    <Paper variant="outlined" sx={{ p: 2, bgcolor: "grey.50", ...sx }}>
+      <Typography variant="body2" sx={{ fontWeight: 500, color: "text.secondary" }}>
+        {label}
+      </Typography>
+      {subtitle ? <Typography variant="caption" sx={{ display: "block", color: "text.secondary" }}>{subtitle}</Typography> : null}
+      <Typography sx={{ mt: 1, fontWeight: 600, color: valueColor || "text.primary", ...valueStyle }}>
         {value}
-      </p>
+      </Typography>
       {children}
-    </article>
+    </Paper>
   )
 }
