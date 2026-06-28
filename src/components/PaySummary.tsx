@@ -202,8 +202,11 @@ function MetricCard({
   sx?: object | undefined
   children?: React.ReactNode | undefined
 }) {
+  const theme = useTheme()
+  const mode = theme.palette.mode
+
   return (
-    <Paper variant="outlined" sx={{ p: 2, bgcolor: "grey.50", ...sx }}>
+    <Paper variant="outlined" sx={{ p: 2, bgcolor: mode === "dark" ? "rgba(255, 255, 255, 0.03)" : "grey.50", ...sx }}>
       <Typography variant="body2" sx={{ fontWeight: 500, color: "text.secondary" }}>
         {label}
       </Typography>

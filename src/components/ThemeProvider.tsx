@@ -30,33 +30,54 @@ export function ThemeProvider({
   storageKey = "phifida-payroll-theme",
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (typeof window !== "undefined" && (localStorage.getItem(storageKey) as Theme)) || defaultTheme
-  )
-
-  const [mode, setMode] = useState<"light" | "dark">(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(storageKey) as Theme
-      if (stored === "dark") return "dark"
-      if (stored === "light") return "light"
-      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-    }
-    return "light"
-  })
+  const [theme, setTheme] = useState<Theme>(defaultTheme)
+  const [mode, setMode] = useState<"light" | "dark">("light")
+  const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-        .matches
-        ? "dark"
-        : "light"
+    setIsMounted(true)
+    const storedTheme = localStorage.getItem(storageKey) as Theme | null
+    if (storedTheme) {
+      setTheme(storedTheme)
+    }
+  }, [storageKey])
 
-      setMode(systemTheme)
-      return
+  useEffect(() => {
+    if (!isMounted) return
+
+    const updateTheme = () => {
+      if (theme === "system") {
+        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
+          .matches
+          ? "dark"
+          : "light"
+
+        setMode(systemTheme)
+      } else {
+        setMode(theme)
+      }
+
+      // Apply dark class to html element
+      const root = window.document.documentElement
+      root.classList.remove("light", "dark")
+      
+      if (theme === "system") {
+        const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+        root.classList.add(systemPrefersDark ? "dark" : "light")
+      } else {
+        root.classList.add(theme)
+      }
     }
 
-    setMode(theme)
-  }, [theme])
+    updateTheme()
+
+    // Listen for system theme changes
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
+    const handler = () => updateTheme()
+    mediaQuery.addEventListener("change", handler)
+
+    return () => mediaQuery.removeEventListener("change", handler)
+  }, [theme, isMounted])
 
   const muiTheme = useMemo(() => {
     return createTheme({

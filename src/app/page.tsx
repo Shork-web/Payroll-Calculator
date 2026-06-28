@@ -64,7 +64,7 @@ export default function Home() {
             gap: 2,
             bgcolor: "transparent",
             borderBottom: 1,
-            borderColor: "rgba(255,255,255,0.1)",
+            borderColor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
           }}
         >
           <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: "center", gap: 3 }}>
@@ -80,7 +80,7 @@ export default function Home() {
                     width: 8,
                     height: 8,
                     borderRadius: "50%",
-                    bgcolor: "#34d399",
+                    bgcolor: mode === "dark" ? "#34d399" : "#059669",
                     animation: "pulse 2s infinite",
                     "@keyframes pulse": {
                       "0%, 100%": { opacity: 1 },
@@ -92,8 +92,8 @@ export default function Home() {
                   label="Philippine Fiber Industry Development Authority"
                   size="small"
                   sx={{
-                    bgcolor: "rgba(52, 211, 153, 0.1)",
-                    color: "#6ee7b7",
+                    bgcolor: mode === "dark" ? "rgba(52, 211, 153, 0.15)" : "rgba(5, 150, 105, 0.1)",
+                    color: mode === "dark" ? "#6ee7b7" : "#047857",
                     fontWeight: 600,
                     fontSize: "0.75rem",
                     letterSpacing: 1,
