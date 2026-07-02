@@ -5,12 +5,11 @@ import {
   PREMIUM_RATE,
   TAX_RATE,
   SEMI_MONTHLY_EXEMPTION,
-  round,
-  roundUp
+  round
 } from "./shared"
 
 export function getSemiMonthlyEarned(monthlyRate: number): number {
-  return roundUp(monthlyRate / 2)
+  return round(monthlyRate / 2)
 }
 
 export function computeSemiMonthlyPayroll(inputs: PayrollInputs): PayrollResult {
@@ -19,13 +18,13 @@ export function computeSemiMonthlyPayroll(inputs: PayrollInputs): PayrollResult 
 
   const periodWorkingDays = computeWorkingDaysInRange(periodStart, periodEnd)
   const dailyRate = round(monthlyRate / workingDays)
-  const hourlyRate = roundUp(dailyRate / HOURS_PER_DAY)
-  const perMinRate = roundUp(dailyRate / HOURS_PER_DAY / 60)
+  const hourlyRate = round(dailyRate / HOURS_PER_DAY)
+  const perMinRate = round(dailyRate / HOURS_PER_DAY / 60)
 
   const earned = getSemiMonthlyEarned(monthlyRate)
-  const absentDeduction = roundUp(dailyRate * absentDays)
-  const lateDeduction = roundUp(perMinRate * lateMinutes)
-  const undertimeDeduction = roundUp(perMinRate * (undertimeMinutes ?? 0))
+  const absentDeduction = round(dailyRate * absentDays)
+  const lateDeduction = round(perMinRate * lateMinutes)
+  const undertimeDeduction = round(perMinRate * (undertimeMinutes ?? 0))
 
   const total = round(Math.max(0, earned - absentDeduction - lateDeduction - undertimeDeduction))
   const premium = round(total * PREMIUM_RATE)

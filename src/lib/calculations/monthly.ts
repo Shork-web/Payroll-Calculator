@@ -4,15 +4,14 @@ import {
   HOURS_PER_DAY,
   PREMIUM_RATE,
   TAX_RATE,
-  round,
-  roundUp
+  round
 } from "./shared"
 
-// Monthly exemption: 250,000 / 12 = 20,833.333 -> roundUp is 20,833.34
-export const MONTHLY_EXEMPTION = roundUp(250_000 / 12)
+// Monthly exemption: 250,000 / 12 = 20,833.333 -> round is 20,833.33
+export const MONTHLY_EXEMPTION = round(250_000 / 12)
 
 export function getMonthlyEarned(monthlyRate: number): number {
-  return roundUp(monthlyRate)
+  return round(monthlyRate)
 }
 
 export function computeMonthlyPayroll(inputs: PayrollInputs): PayrollResult {
@@ -21,13 +20,13 @@ export function computeMonthlyPayroll(inputs: PayrollInputs): PayrollResult {
 
   const periodWorkingDays = computeWorkingDaysInRange(periodStart, periodEnd)
   const dailyRate = round(monthlyRate / workingDays)
-  const hourlyRate = roundUp(dailyRate / HOURS_PER_DAY)
-  const perMinRate = roundUp(dailyRate / HOURS_PER_DAY / 60)
+  const hourlyRate = round(dailyRate / HOURS_PER_DAY)
+  const perMinRate = round(dailyRate / HOURS_PER_DAY / 60)
 
   const earned = getMonthlyEarned(monthlyRate)
-  const absentDeduction = roundUp(dailyRate * absentDays)
-  const lateDeduction = roundUp(perMinRate * lateMinutes)
-  const undertimeDeduction = roundUp(perMinRate * (undertimeMinutes ?? 0))
+  const absentDeduction = round(dailyRate * absentDays)
+  const lateDeduction = round(perMinRate * lateMinutes)
+  const undertimeDeduction = round(perMinRate * (undertimeMinutes ?? 0))
 
   const total = round(Math.max(0, earned - absentDeduction - lateDeduction - undertimeDeduction))
   const premium = round(total * PREMIUM_RATE)

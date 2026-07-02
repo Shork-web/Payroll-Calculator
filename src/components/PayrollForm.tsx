@@ -58,6 +58,8 @@ function createFormDefaultValues(): PayrollFormInput {
     lateIncidents: [],
     computationType: "semi-monthly",
     additionalTax: 0,
+    additionalTaxDate: "",
+    additionalTaxReason: "",
   }
 }
 
@@ -78,14 +80,17 @@ const WATCHED_FIELDS = [
   "lateDates",
   "computationType",
   "additionalTax",
+  "additionalTaxDate",
+  "additionalTaxReason",
 ] as const
 
 export interface PayrollFormProps {
   onCompute: (result: PayrollResult, info: EmployeeInfo, inputs: PayrollInputs) => void
   onReset: () => void
+  editValues?: PayrollFormInput | null
 }
 
-export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
+export function PayrollForm({ onCompute, onReset, editValues = null }: PayrollFormProps) {
   const theme = useTheme()
   const mode = theme.palette.mode
 
@@ -102,6 +107,14 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
     mode: "onChange",
     defaultValues: FORM_DEFAULT_VALUES,
   })
+
+  useEffect(() => {
+    if (editValues) {
+      reset(editValues)
+    } else {
+      reset(FORM_DEFAULT_VALUES)
+    }
+  }, [editValues, reset])
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -170,6 +183,8 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
         absentDays: totalAbsentDays,
         overpayment: values.overpayment,
         additionalTax: values.additionalTax,
+        additionalTaxDate: values.additionalTaxDate,
+        additionalTaxReason: values.additionalTaxReason,
       })
 
       if (!numericParsed.success) {
@@ -638,7 +653,7 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
                   * Deducted from gross pay (with 20% premium surcharge).
                 </Typography>
               </Box>
-              <Box>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <TextField
                   id="additionalTax"
                   label="Additional Tax"
@@ -650,6 +665,28 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
                   helperText={errors.additionalTax?.message}
                   {...register("additionalTax", numberFieldOptions)}
                 />
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+                  <TextField
+                    id="additionalTaxDate"
+                    label="Tax Date / Period"
+                    placeholder="e.g., June 15"
+                    size="small"
+                    fullWidth
+                    error={!!errors.additionalTaxDate?.message}
+                    helperText={errors.additionalTaxDate?.message}
+                    {...register("additionalTaxDate")}
+                  />
+                  <TextField
+                    id="additionalTaxReason"
+                    label="Reason"
+                    placeholder="e.g., Adjustment"
+                    size="small"
+                    fullWidth
+                    error={!!errors.additionalTaxReason?.message}
+                    helperText={errors.additionalTaxReason?.message}
+                    {...register("additionalTaxReason")}
+                  />
+                </Box>
                 <Typography variant="caption" sx={{ mt: 0.5, display: "block", color: "text.secondary", fontSize: "0.7rem", lineHeight: 1.2 }}>
                   * Added directly to the calculated 5% withholding tax deduction.
                 </Typography>

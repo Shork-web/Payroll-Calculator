@@ -24,6 +24,8 @@ export interface PayrollInputs {
   lateIncidents?: Array<{ date: string; minutes: number; type: "late" | "undertime" | "absent"; days?: number }> | undefined
   computationType: "semi-monthly" | "daily" | "monthly"
   additionalTax: number
+  additionalTaxDate?: string | undefined
+  additionalTaxReason?: string | undefined
 }
 
 
@@ -55,3 +57,10 @@ export interface PayrollResult {
 
 
 export type PayrollFormValues = EmployeeInfo & PayrollInputs
+
+export interface PayrollEntry {
+  id: string
+  employee: EmployeeInfo
+  inputs: PayrollInputs
+  result: PayrollResult
+}

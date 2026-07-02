@@ -30,6 +30,8 @@ export const payrollNumericSchema = z.object({
   absentDays: coerceFormNumber().pipe(z.number().min(0)),
   overpayment: overpaymentField,
   additionalTax: coerceFormNumber().pipe(z.number().min(0)),
+  additionalTaxDate: z.string().optional(),
+  additionalTaxReason: z.string().optional(),
 })
 
 const lateIncidentSchema = z.object({
@@ -58,6 +60,8 @@ export const payrollSchema = z
     lateIncidents: z.array(lateIncidentSchema).default([]),
     computationType: z.enum(["semi-monthly", "daily", "monthly"]).default("semi-monthly"),
     additionalTax: coerceFormNumber().pipe(z.number().min(0)),
+    additionalTaxDate: z.string().optional().default(""),
+    additionalTaxReason: z.string().optional().default(""),
   })
   .refine((data) => data.periodEnd >= data.periodStart, {
     message: "End date must be on or after start date",

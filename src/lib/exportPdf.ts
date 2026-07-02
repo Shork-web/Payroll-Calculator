@@ -1,7 +1,7 @@
 import jsPDF from "jspdf"
 
 import { formatPayPeriod } from "@/lib/format"
-import type { EmployeeInfo, PayrollInputs, PayrollResult } from "@/types/payroll"
+import type { EmployeeInfo, PayrollInputs, PayrollResult, PayrollEntry } from "@/types/payroll"
 
 type Doc = InstanceType<typeof jsPDF>
 
@@ -298,13 +298,22 @@ export async function exportPayrollPdf(
 
   rowIndex = 0
   let hasDeductions = false
-  if (tax > 0) {
-    const addTax = inputs.additionalTax ?? 0
-    if (addTax > 0) {
-      drawRow(`Withholding Tax (5% + ₱${n(addTax)} Add.)`, `(${n(tax)})`, false, true)
-    } else {
-      drawRow("Withholding Tax (5%)", `(${n(tax)})`, false, true)
+  const addTax = inputs.additionalTax ?? 0
+  const baseTax = Math.max(0, tax - addTax)
+
+  if (baseTax > 0) {
+    drawRow("Withholding Tax (5%)", `(${n(baseTax)})`, false, true)
+    hasDeductions = true
+  }
+  if (addTax > 0) {
+    let addTaxLabel = "Additional Tax"
+    const details = []
+    if (inputs.additionalTaxDate) details.push(inputs.additionalTaxDate)
+    if (inputs.additionalTaxReason) details.push(inputs.additionalTaxReason)
+    if (details.length > 0) {
+      addTaxLabel += ` (${details.join(" - ")})`
     }
+    drawRow(addTaxLabel, `(${n(addTax)})`, false, true)
     hasDeductions = true
   }
   if (overpayment > 0) {
@@ -611,5 +620,434 @@ export async function exportPayslipPdf(
   const dateStart = inputs.periodStart.split("T")[0]
   const dateEnd = inputs.periodEnd.split("T")[0]
   doc.save(`Payslip_${safeName}_${dateStart}_${dateEnd}.pdf`)
+}
+
+export async function exportConsolidatedPayrollPdf(
+  entries: PayrollEntry[],
+  sigName: string,
+  sigTitle: string,
+): Promise<void> {
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" })
+  const pageW = 297
+  const margin = 10
+  const RM = pageW - margin
+
+  // PhilFIDA Emerald
+  const GREEN: [number, number, number] = [15, 110, 86]
+
+  // Column positions
+  const cols = {
+    no:       margin + 6,
+    nameL:    margin + 9,
+    posL:     margin + 52,
+    modeL:    margin + 95,
+    baseR:    margin + 130,
+    premR:    margin + 155,
+    grossR:   margin + 180,
+    absentR:  margin + 197,
+    lateUtR:  margin + 215,
+    dedR:     margin + 238,
+    taxR:     margin + 258,
+    netR:     RM - 2,
+  }
+
+  let y = 12
+  let tableTop = 0
+
+  function drawPageHeader() {
+    // Republic text
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(7.5)
+    doc.setTextColor(100, 100, 100)
+    doc.text("Republic of the Philippines", pageW / 2, y, { align: "center" })
+
+    // Agency name in green
+    y += 4
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(10)
+    doc.setTextColor(...GREEN)
+    doc.text("PHILIPPINE FIBER INDUSTRY DEVELOPMENT AUTHORITY", pageW / 2, y, { align: "center" })
+
+    // Green divider line
+    y += 3
+    doc.setDrawColor(...GREEN)
+    doc.setLineWidth(0.5)
+    doc.line(margin, y, RM, y)
+
+    // Thin accent line below
+    y += 0.7
+    doc.setDrawColor(220, 232, 228)
+    doc.setLineWidth(0.2)
+    doc.line(margin, y, RM, y)
+
+    // Title
+    y += 5.5
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(11)
+    doc.setTextColor(0, 0, 0)
+    doc.text("CONSOLIDATED PAYROLL REGISTER", pageW / 2, y, { align: "center" })
+
+    // Period
+    if (entries.length > 0) {
+      y += 4.5
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(8.5)
+      doc.setTextColor(80, 80, 80)
+      const period = formatPayPeriod(entries[0].inputs.periodStart, entries[0].inputs.periodEnd)
+      doc.text(`Pay Period: ${period}`, pageW / 2, y, { align: "center" })
+    }
+
+    y += 6
+    tableTop = y
+
+    // ── Table header ──
+    const hdrH = 8
+    doc.setFillColor(...GREEN)
+    doc.rect(margin, y, RM - margin, hdrH, "F")
+
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(7)
+    doc.setTextColor(255, 255, 255)
+
+    const ty = y + 5.5
+    doc.text("No.",            cols.no,      ty, { align: "right" })
+    doc.text("Employee Name",  cols.nameL,   ty)
+    doc.text("Position",       cols.posL,    ty)
+    doc.text("Mode",           cols.modeL,   ty)
+    doc.text("Base Pay",       cols.baseR,   ty, { align: "right" })
+    doc.text("20% Premium",    cols.premR,   ty, { align: "right" })
+    doc.text("Gross Pay",      cols.grossR,  ty, { align: "right" })
+    doc.text("Absent",         cols.absentR, ty, { align: "right" })
+    doc.text("Late/UT",        cols.lateUtR, ty, { align: "right" })
+    doc.text("Deductions",     cols.dedR,    ty, { align: "right" })
+    doc.text("Tax",            cols.taxR,    ty, { align: "right" })
+    doc.text("Net Pay",        cols.netR,    ty, { align: "right" })
+
+    y += hdrH
+  }
+
+  drawPageHeader()
+
+  // Accumulators
+  let totalBase  = 0
+  let totalPrem  = 0
+  let totalGross = 0
+  let totalDed   = 0
+  let totalTax   = 0
+  let totalNet   = 0
+
+  // Data rows
+  entries.forEach((entry, idx) => {
+    if (y > 175) {
+      doc.setDrawColor(...GREEN)
+      doc.setLineWidth(0.4)
+      doc.rect(margin, tableTop, RM - margin, y - tableTop, "S")
+
+      doc.addPage()
+      y = 12
+      drawPageHeader()
+    }
+
+    const { employee, inputs, result } = entry
+    const displayGross = result.total + result.premium
+    const allDed = result.absentDeduction + result.lateDeduction + result.undertimeDeduction
+      + result.overpayment + result.overpaymentPremium
+    const lateUtMins = (inputs.lateMinutes ?? 0) + (inputs.undertimeMinutes ?? 0)
+    const absentDays = inputs.absentDays ?? 0
+
+    totalBase  += result.total
+    totalPrem  += result.premium
+    totalGross += displayGross
+    totalDed   += allDed
+    totalTax   += result.tax
+    totalNet   += result.netPay
+
+    const rowH = 7
+    const textY = y + 5
+
+    // Zebra stripe
+    if (idx % 2 === 0) {
+      doc.setFillColor(248, 250, 249)
+      doc.rect(margin, y, RM - margin, rowH, "F")
+    }
+
+    // No.
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(7.5)
+    doc.setTextColor(160, 160, 160)
+    doc.text(String(idx + 1), cols.no, textY, { align: "right" })
+
+    // Name
+    doc.setFont("helvetica", "bold")
+    doc.setTextColor(20, 20, 20)
+    doc.text(employee.name.toUpperCase(), cols.nameL, textY)
+
+    // Position
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(60, 60, 60)
+    doc.text(employee.position, cols.posL, textY)
+
+    // Mode
+    doc.setTextColor(100, 100, 100)
+    const modeStr = result.computationType === "daily" ? "Daily"
+      : result.computationType === "monthly" ? "Monthly" : "Semi-Monthly"
+    doc.text(modeStr, cols.modeL, textY)
+
+    // Base Pay
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(30, 30, 30)
+    doc.text(n(result.total), cols.baseR, textY, { align: "right" })
+
+    // 20% Premium
+    doc.text(n(result.premium), cols.premR, textY, { align: "right" })
+
+    // Gross Pay
+    doc.text(n(displayGross), cols.grossR, textY, { align: "right" })
+
+    // Absent Days
+    doc.setTextColor(80, 80, 80)
+    doc.text(absentDays > 0 ? String(absentDays) : "-", cols.absentR, textY, { align: "right" })
+
+    // Late/UT mins
+    doc.text(lateUtMins > 0 ? `${lateUtMins}` : "-", cols.lateUtR, textY, { align: "right" })
+
+    // Deductions
+    doc.setTextColor(30, 30, 30)
+    doc.text(allDed > 0 ? `(${n(allDed)})` : "-", cols.dedR, textY, { align: "right" })
+
+    // Tax
+    doc.text(result.tax > 0 ? `(${n(result.tax)})` : "-", cols.taxR, textY, { align: "right" })
+
+    // Net Pay — green accent
+    doc.setFont("helvetica", "bold")
+    doc.setTextColor(...GREEN)
+    doc.text(n(result.netPay), cols.netR, textY, { align: "right" })
+
+    // Row line
+    doc.setDrawColor(225, 230, 228)
+    doc.setLineWidth(0.15)
+    doc.line(margin, y + rowH, RM, y + rowH)
+
+    y += rowH
+  })
+
+  // ── Totals row ──
+  const totH = 9
+
+  doc.setDrawColor(...GREEN)
+  doc.setLineWidth(0.4)
+  doc.line(margin, y, RM, y)
+
+  doc.setFillColor(232, 245, 240)
+  doc.rect(margin, y, RM - margin, totH, "F")
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(8)
+  doc.setTextColor(20, 20, 20)
+
+  const ty = y + 6.2
+  doc.text("TOTAL", cols.nameL, ty)
+  doc.text(n(totalBase),  cols.baseR,  ty, { align: "right" })
+  doc.text(n(totalPrem),  cols.premR,  ty, { align: "right" })
+  doc.text(n(totalGross), cols.grossR, ty, { align: "right" })
+  doc.text(totalDed > 0 ? `(${n(totalDed)})` : "-", cols.dedR, ty, { align: "right" })
+  doc.text(totalTax > 0 ? `(${n(totalTax)})` : "-", cols.taxR, ty, { align: "right" })
+
+  doc.setTextColor(...GREEN)
+  doc.text(n(totalNet), cols.netR, ty, { align: "right" })
+
+  // Double bottom border
+  doc.setDrawColor(...GREEN)
+  doc.setLineWidth(0.4)
+  doc.line(margin, y + totH, RM, y + totH)
+  doc.setLineWidth(0.2)
+  doc.line(margin, y + totH + 0.7, RM, y + totH + 0.7)
+
+  y += totH + 1
+
+  // Outer table border
+  doc.setDrawColor(...GREEN)
+  doc.setLineWidth(0.4)
+  doc.rect(margin, tableTop, RM - margin, y - tableTop, "S")
+
+  y += 16
+
+  if (y > 185) {
+    doc.addPage()
+    y = 25
+  }
+
+  // ── Signatory ──
+  const sigStartX = margin + 185
+
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8.5)
+  doc.setTextColor(0, 0, 0)
+  doc.text("Certified Correct:", sigStartX, y)
+
+  y += 14
+  doc.setDrawColor(80, 80, 80)
+  doc.setLineWidth(0.3)
+  doc.line(sigStartX, y, RM - 3, y)
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(9)
+  doc.setTextColor(0, 0, 0)
+  doc.text((sigName || "").toUpperCase() || "(No Signatory Configured)", sigStartX, y + 5)
+
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8)
+  doc.setTextColor(80, 80, 80)
+  doc.text(sigTitle || "Authorized Signatory", sigStartX, y + 9.5)
+
+  doc.save("Consolidated_Payroll_Register.pdf")
+}
+
+
+export async function exportBulkPayslipsPdf(entries: PayrollEntry[]): Promise<void> {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
+
+  entries.forEach((entry, idx) => {
+    if (idx > 0) {
+      doc.addPage()
+    }
+    const { employee, result, inputs } = entry
+    const period = formatPayPeriod(inputs.periodStart, inputs.periodEnd)
+
+    const {
+      earned, total, premium,
+      overpayment, overpaymentPremium,
+      absentDeduction, lateDeduction, undertimeDeduction,
+      tax, netPay,
+    } = result
+    const { monthlyRate, lateMinutes, undertimeMinutes, absentDays } = inputs
+
+    const boxW = 180
+    const boxH = 102.5
+    const boxX = (210 - boxW) / 2
+    const boxY = 25
+
+    doc.setDrawColor(0, 0, 0)
+    doc.setLineWidth(0.35)
+    doc.rect(boxX, boxY, boxW, boxH)
+
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(9)
+    doc.setTextColor(0, 0, 0)
+    doc.text("Republic of the Philippines", boxX + boxW / 2, boxY + 8, { align: "center" })
+
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(12)
+    doc.setTextColor(40, 92, 50)
+    doc.text("Philippine Fiber Industry Development Authority", boxX + boxW / 2, boxY + 14, { align: "center" })
+
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(10)
+    doc.setTextColor(0, 0, 0)
+    doc.text("PAYSLIP", boxX + boxW / 2, boxY + 20, { align: "center" })
+
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(10)
+    doc.text("Name: ", boxX + 8, boxY + 29)
+    const nameWidth = doc.getTextWidth("Name: ")
+    doc.setFont("helvetica", "bold")
+    doc.text(employee.name, boxX + 8 + nameWidth, boxY + 29)
+
+    doc.setFont("helvetica", "normal")
+    doc.text(`Position: ${employee.position}`, boxX + 8, boxY + 35)
+
+    const modeLabel2 = result.computationType === "daily"
+      ? "Daily"
+      : result.computationType === "monthly"
+        ? "Monthly"
+        : "Semi-Monthly"
+    doc.text(`Period: ${period} (${modeLabel2})`, boxX + 8, boxY + 41)
+
+    const tableY = boxY + 45
+    const rowHeights = [6, 6, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5]
+    
+    doc.setLineWidth(0.3)
+    for (let i = 0; i <= rowHeights.length; i++) {
+      const yLine = tableY + rowHeights.slice(0, i).reduce((sum, h) => sum + h, 0)
+      doc.line(boxX, yLine, boxX + boxW, yLine)
+    }
+
+    const tableH = rowHeights.reduce((sum, h) => sum + h, 0)
+    doc.line(boxX + 90, tableY, boxX + 90, tableY + tableH)
+    doc.line(boxX + 62, tableY + 6, boxX + 62, tableY + tableH)
+    doc.line(boxX + 152, tableY + 6, boxX + 152, tableY + tableH)
+
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(9)
+    doc.text("Earnings:", boxX + 2, tableY + 4.5)
+    doc.text("Deductions:", boxX + 92, tableY + 4.5)
+
+    doc.setFont("helvetica", "normal")
+    doc.text("Amount", boxX + 88, tableY + 10.5, { align: "right" })
+    doc.text("Amount", boxX + 178, tableY + 10.5, { align: "right" })
+
+    const totalMins = lateMinutes + (undertimeMinutes ?? 0)
+    let aluDesc = ""
+    if (absentDays > 0 && totalMins > 0) {
+      aluDesc = `${absentDays} day${absentDays !== 1 ? "s" : ""}, ${totalMins} min${totalMins !== 1 ? "s" : ""}`
+    } else if (absentDays > 0) {
+      aluDesc = `${absentDays} day${absentDays !== 1 ? "s" : ""}`
+    } else if (totalMins > 0) {
+      aluDesc = `${totalMins} min${totalMins !== 1 ? "s" : ""}`
+    }
+
+    const aluCost = absentDeduction + lateDeduction + undertimeDeduction
+    const displayGross = total + premium
+
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(9)
+
+    let rowY = tableY + 12 + 4.5
+    doc.text("Rate/Month", boxX + 2, rowY)
+    doc.text(n(monthlyRate), boxX + 88, rowY, { align: "right" })
+    doc.text("Absent/Late/Undertime", boxX + 92, rowY)
+    if (aluDesc) {
+      doc.text(aluDesc, boxX + 178, rowY, { align: "right" })
+    }
+
+    rowY += 6.5
+    doc.text("Earned for the Period", boxX + 2, rowY)
+    doc.text(n(earned), boxX + 88, rowY, { align: "right" })
+    doc.text("Deductions", boxX + 92, rowY)
+    if (aluCost > 0) {
+      doc.text(n(aluCost), boxX + 178, rowY, { align: "right" })
+    }
+
+    rowY += 6.5
+    doc.text("20% Premium", boxX + 2, rowY)
+    doc.text(n(premium), boxX + 88, rowY, { align: "right" })
+    const addTax = inputs.additionalTax ?? 0
+    const taxLabelStr = addTax > 0 ? `Tax (5% + ₱${n(addTax)})` : "5% tax"
+    doc.text(taxLabelStr, boxX + 92, rowY)
+    if (tax > 0) {
+      doc.text(n(tax), boxX + 178, rowY, { align: "right" })
+    }
+
+    rowY += 6.5
+    doc.text("Gross Pay", boxX + 2, rowY)
+    doc.text(n(displayGross), boxX + 88, rowY, { align: "right" })
+    doc.text("Overpayment", boxX + 92, rowY)
+    if (overpayment > 0) {
+      doc.text(n(overpayment), boxX + 178, rowY, { align: "right" })
+    }
+
+    rowY += 6.5
+    doc.text("Overpayment (premium)", boxX + 92, rowY)
+    if (overpaymentPremium > 0) {
+      doc.text(n(overpaymentPremium), boxX + 178, rowY, { align: "right" })
+    }
+
+    rowY += 13
+    doc.setFont("helvetica", "bold")
+    doc.text("Net Pay", boxX + 92, rowY)
+    doc.text(n(netPay), boxX + 178, rowY, { align: "right" })
+  })
+
+  doc.save("Bulk_Payslips.pdf")
 }
 

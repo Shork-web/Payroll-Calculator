@@ -1,12 +1,15 @@
 "use client"
 
 import { useCallback, useState } from "react"
-import { Box, Container, Typography, Stack, Paper, Chip, Avatar, useTheme } from "@mui/material"
+import { Box, Container, Typography, Stack, Paper, Chip, Avatar, useTheme, Button } from "@mui/material"
 import { ExportButton } from "@/components/ExportButton"
 import { PayrollForm } from "@/components/PayrollForm"
 import { PaySummary } from "@/components/PaySummary"
+import { PayrollSheet } from "@/components/PayrollSheet"
 import { ThemeToggle } from "@/components/ThemeToggle"
-import type { EmployeeInfo, PayrollInputs, PayrollResult } from "@/types/payroll"
+import type { EmployeeInfo, PayrollInputs, PayrollResult, PayrollEntry } from "@/types/payroll"
+import { exportConsolidatedPayrollPdf, exportBulkPayslipsPdf } from "@/lib/exportPdf"
+import type { PayrollFormInput } from "@/lib/schema"
 import logo from "./COS-LOGO.png"
 
 export default function Home() {
@@ -14,6 +17,13 @@ export default function Home() {
   const [result, setResult] = useState<PayrollResult | null>(null)
   const [employee, setEmployee] = useState<EmployeeInfo | null>(null)
   const [inputs, setInputs] = useState<PayrollInputs | null>(null)
+
+  // Multiple entries state
+  const [entries, setEntries] = useState<PayrollEntry[]>([])
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
+  const [editValues, setEditValues] = useState<PayrollFormInput | null>(null)
+  const [registerSigName, setRegisterSigName] = useState("")
+  const [registerSigTitle, setRegisterSigTitle] = useState("")
 
   const handleCompute = useCallback(
     (nextResult: PayrollResult, info: EmployeeInfo, nextInputs: PayrollInputs) => {
@@ -28,13 +38,126 @@ export default function Home() {
     setResult(null)
     setEmployee(null)
     setInputs(null)
+    setEditingEntryId(null)
+    setEditValues(null)
   }, [])
+
+  const handleAddEntry = useCallback(() => {
+    if (!result || !employee || !inputs) return
+    
+    const newEntry: PayrollEntry = {
+      id: editingEntryId || crypto.randomUUID(),
+      employee,
+      inputs,
+      result,
+    }
+
+    if (editingEntryId) {
+      setEntries((prev) => prev.map((e) => (e.id === editingEntryId ? newEntry : e)))
+      setEditingEntryId(null)
+      setEditValues(null)
+    } else {
+      setEntries((prev) => [...prev, newEntry])
+    }
+
+    handleReset()
+  }, [result, employee, inputs, editingEntryId, handleReset])
+
+  const handleEditEntry = useCallback(
+    (id: string) => {
+      const target = entries.find((e) => e.id === id)
+      if (!target) return
+
+      setEditingEntryId(id)
+      setEditValues({
+        name: target.employee.name,
+        position: target.employee.position,
+        periodStart: target.employee.periodStart,
+        periodEnd: target.employee.periodEnd,
+        monthlyRate: target.inputs.monthlyRate,
+        workingDays: target.inputs.workingDays,
+        lateMinutes: target.inputs.lateMinutes,
+        undertimeMinutes: target.inputs.undertimeMinutes ?? 0,
+        absentDays: target.inputs.absentDays,
+        overpayment: target.inputs.overpayment,
+        signatoryName: target.employee.signatoryName || "",
+        signatoryTitle: target.employee.signatoryTitle || "",
+        lateDates: target.inputs.lateDates || "",
+        undertimeDates: target.inputs.undertimeDates || "",
+        lateIncidents: target.inputs.lateIncidents || [],
+        computationType: target.inputs.computationType || "semi-monthly",
+        additionalTax: target.inputs.additionalTax ?? 0,
+      })
+
+      setResult(target.result)
+      setEmployee(target.employee)
+      setInputs(target.inputs)
+    },
+    [entries],
+  )
+
+  const handleDeleteEntry = useCallback(
+    (id: string) => {
+      setEntries((prev) => prev.filter((e) => e.id !== id))
+      if (editingEntryId === id) {
+        handleReset()
+      }
+    },
+    [editingEntryId, handleReset],
+  )
+
+  const handleCancelEdit = useCallback(() => {
+    handleReset()
+  }, [handleReset])
+
+  const handleExportConsolidated = useCallback(() => {
+    if (entries.length === 0) return
+    exportConsolidatedPayrollPdf(entries, registerSigName, registerSigTitle)
+  }, [entries, registerSigName, registerSigTitle])
+
+  const handleExportPayslips = useCallback(() => {
+    if (entries.length === 0) return
+    exportBulkPayslipsPdf(entries)
+  }, [entries])
 
   const canExport = employee !== null && result !== null && inputs !== null
   const mode = theme.palette.mode
 
+  const actionStack = canExport ? (
+    <Stack direction="row" spacing={1.5} sx={{ mt: { xs: 2, sm: 0 }, flexWrap: "wrap", gap: 1, alignItems: "center" }}>
+      {editingEntryId && (
+        <Button
+          size="medium"
+          variant="outlined"
+          color="error"
+          onClick={handleCancelEdit}
+          sx={{ fontWeight: 700, borderRadius: 2.5 }}
+        >
+          Cancel
+        </Button>
+      )}
+      <Button
+        size="medium"
+        variant="contained"
+        color="success"
+        onClick={handleAddEntry}
+        sx={{
+          fontWeight: 700,
+          borderRadius: 2.5,
+          bgcolor: mode === "dark" ? "#047857" : "#059669",
+          "&:hover": {
+            bgcolor: mode === "dark" ? "#065f46" : "#047857",
+          }
+        }}
+      >
+        {editingEntryId ? "Update Entry" : "Add to Sheet"}
+      </Button>
+      <ExportButton employee={employee} result={result} inputs={inputs} />
+    </Stack>
+  ) : null
+
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+    <Box sx={{ minHeight: "100vh", bgcolor: "background.default", pb: 6 }}>
       {/* Premium Dark Green Banner */}
       <Box
         sx={{
@@ -43,7 +166,7 @@ export default function Home() {
           right: 0,
           top: 0,
           height: 256,
-          background: mode === "dark" 
+          background: mode === "dark"
             ? "linear-gradient(135deg, #065f46 0%, #064e3b 50%, #022c22 100%)"
             : "linear-gradient(135deg, #059669 0%, #047857 50%, #065f46 100%)",
           zIndex: 0,
@@ -112,10 +235,10 @@ export default function Home() {
         </Paper>
 
         {/* Core Layout Grid */}
-        <Box sx={{ display: "flex", flexDirection: { xs: "column", lg: "row" }, gap: 3 }}>
+        <Box sx={{ display: "flex", flexDirection: { xs: "column", lg: "row" }, gap: 3, mb: 4 }}>
           {/* Left Column: Form Panel */}
           <Box sx={{ flex: { lg: "0 0 40%" }, position: { lg: "sticky" }, top: 32 }}>
-            <PayrollForm onCompute={handleCompute} onReset={handleReset} />
+            <PayrollForm onCompute={handleCompute} onReset={handleReset} editValues={editValues} />
           </Box>
 
           {/* Right Column: Dynamic Output Panel */}
@@ -124,18 +247,25 @@ export default function Home() {
               <PaySummary
                 result={result}
                 inputs={inputs}
-                action={
-                  canExport ? (
-                    <ExportButton
-                      employee={employee}
-                      result={result}
-                      inputs={inputs}
-                    />
-                  ) : null
-                }
+                action={actionStack}
               />
             </Stack>
           </Box>
+        </Box>
+
+        {/* Saved Entries Directory Section */}
+        <Box>
+          <PayrollSheet
+            entries={entries}
+            onEdit={handleEditEntry}
+            onDelete={handleDeleteEntry}
+            onExportConsolidated={handleExportConsolidated}
+            onExportPayslips={handleExportPayslips}
+            registerSigName={registerSigName}
+            registerSigTitle={registerSigTitle}
+            onRegisterSigNameChange={setRegisterSigName}
+            onRegisterSigTitleChange={setRegisterSigTitle}
+          />
         </Box>
       </Container>
     </Box>
