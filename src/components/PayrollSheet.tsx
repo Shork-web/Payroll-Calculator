@@ -8,8 +8,9 @@ import {
   AccountBalanceWallet as WalletIcon,
   PictureAsPdf as PdfIcon,
   Layers as LayersIcon,
+  Add as AddIcon,
 } from "@mui/icons-material"
-import type { PayrollEntry } from "@/types/payroll"
+import type { PayrollEntry, Signatory } from "@/types/payroll"
 import { formatPeso } from "@/lib/format"
 
 export interface PayrollSheetProps {
@@ -18,10 +19,8 @@ export interface PayrollSheetProps {
   onDelete: (id: string) => void
   onExportConsolidated: () => void
   onExportPayslips: () => void
-  registerSigName: string
-  registerSigTitle: string
-  onRegisterSigNameChange: (val: string) => void
-  onRegisterSigTitleChange: (val: string) => void
+  signatories: Signatory[]
+  onSignatoriesChange: (val: Signatory[]) => void
 }
 
 export function PayrollSheet({
@@ -30,10 +29,8 @@ export function PayrollSheet({
   onDelete,
   onExportConsolidated,
   onExportPayslips,
-  registerSigName,
-  registerSigTitle,
-  onRegisterSigNameChange,
-  onRegisterSigTitleChange,
+  signatories,
+  onSignatoriesChange,
 }: PayrollSheetProps) {
   const theme = useTheme()
   const mode = theme.palette.mode
@@ -160,47 +157,136 @@ export function PayrollSheet({
             />
           </Box>
 
-          {/* Register Signatory Input Section */}
+          {/* Register Signatories Input Section */}
           <Paper
             variant="outlined"
             sx={{
-              p: 2.5,
-              borderRadius: 3,
+              p: 3,
+              borderRadius: 3.5,
               borderColor: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
               bgcolor: mode === "dark" ? "rgba(255,255,255,0.01)" : "rgba(0,0,0,0.01)",
               display: "flex",
-              flexDirection: { xs: "column", md: "row" },
+              flexDirection: "column",
               gap: 2.5,
-              alignItems: "center"
             }}
           >
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: "0.85rem", color: "text.primary" }}>
-                Consolidated Register Signatory
-              </Typography>
-              <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mt: 0.5 }}>
-                Configure the &quot;Certified Correct&quot; signature block for the exported consolidated payroll sheet PDF.
-              </Typography>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 2 }}>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: "0.9rem", color: "text.primary" }}>
+                  Consolidated Register Signatories
+                </Typography>
+                <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mt: 0.5 }}>
+                  Configure signature blocks (e.g., Prepared By, Certified Correct, Approved By) for the exported consolidated payroll sheet.
+                </Typography>
+              </Box>
+              <Button
+                size="small"
+                variant="outlined"
+                color="success"
+                startIcon={<AddIcon />}
+                onClick={() => {
+                  onSignatoriesChange([...signatories, { label: "Prepared by:", name: "", title: "" }])
+                }}
+                sx={{
+                  fontSize: "0.75rem",
+                  borderRadius: 2,
+                  fontWeight: 600,
+                  borderColor: mode === "dark" ? "#34d399" : "#059669",
+                  color: mode === "dark" ? "#6ee7b7" : "#059669",
+                  "&:hover": {
+                    borderColor: mode === "dark" ? "#6ee7b7" : "#047857",
+                    bgcolor: mode === "dark" ? "rgba(52, 211, 153, 0.05)" : "rgba(5, 150, 105, 0.04)",
+                  }
+                }}
+              >
+                Add Signatory
+              </Button>
             </Box>
-            
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ width: { xs: "100%", md: "auto" }, flex: { md: 2 } }}>
-              <TextField
-                label="Signatory Name"
-                placeholder="e.g. Director II"
-                size="small"
-                fullWidth
-                value={registerSigName}
-                onChange={(e) => onRegisterSigNameChange(e.target.value)}
-              />
-              <TextField
-                label="Signatory Title"
-                placeholder="e.g. Regional Director"
-                size="small"
-                fullWidth
-                value={registerSigTitle}
-                onChange={(e) => onRegisterSigTitleChange(e.target.value)}
-              />
-            </Stack>
+
+            {signatories.length === 0 ? (
+              <Box sx={{ py: 2, textAlign: "center" }}>
+                <Typography variant="body2" sx={{ fontStyle: "italic", color: "text.secondary" }}>
+                  No signatories configured. Click &quot;Add Signatory&quot; to configure signature blocks.
+                </Typography>
+              </Box>
+            ) : (
+              <Stack spacing={2} sx={{ mt: 1 }}>
+                {signatories.map((sig, index) => (
+                  <Paper
+                    key={index}
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      borderRadius: 2.5,
+                      borderColor: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+                      bgcolor: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "background.paper",
+                      display: "flex",
+                      gap: 2,
+                      alignItems: "center",
+                      flexDirection: { xs: "column", md: "row" }
+                    }}
+                  >
+                    <TextField
+                      label="Prepared By / Role / Label"
+                      placeholder="e.g. Prepared by:"
+                      size="small"
+                      sx={{ flex: 1, width: "100%" }}
+                      value={sig.label}
+                      onChange={(e) => {
+                        const newSigs = [...signatories]
+                        newSigs[index]! = { ...newSigs[index]!, label: e.target.value }
+                        onSignatoriesChange(newSigs)
+                      }}
+                    />
+                    <TextField
+                      label="Signatory Name"
+                      placeholder="e.g. Juan dela Cruz"
+                      size="small"
+                      sx={{ flex: 1.5, width: "100%" }}
+                      value={sig.name}
+                      onChange={(e) => {
+                        const newSigs = [...signatories]
+                        newSigs[index]! = { ...newSigs[index]!, name: e.target.value }
+                        onSignatoriesChange(newSigs)
+                      }}
+                    />
+                    <TextField
+                      label="Signatory Title"
+                      placeholder="e.g. Administrative Officer V"
+                      size="small"
+                      sx={{ flex: 1.5, width: "100%" }}
+                      value={sig.title}
+                      onChange={(e) => {
+                        const newSigs = [...signatories]
+                        newSigs[index]! = { ...newSigs[index]!, title: e.target.value }
+                        onSignatoriesChange(newSigs)
+                      }}
+                    />
+                    <IconButton
+                      onClick={() => {
+                        const newSigs = signatories.filter((_, idx) => idx !== index)
+                        onSignatoriesChange(newSigs)
+                      }}
+                      sx={{
+                        color: "error.main",
+                        border: 1,
+                        borderColor: "error.light",
+                        borderRadius: 2,
+                        p: 0.75,
+                        alignSelf: { xs: "flex-end", md: "auto" },
+                        "&:hover": {
+                          bgcolor: "error.light",
+                          color: "white"
+                        }
+                      }}
+                      title="Remove signatory"
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Paper>
+                ))}
+              </Stack>
+            )}
           </Paper>
 
           {/* Directory Data Table */}

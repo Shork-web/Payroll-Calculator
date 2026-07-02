@@ -7,7 +7,7 @@ import { PayrollForm } from "@/components/PayrollForm"
 import { PaySummary } from "@/components/PaySummary"
 import { PayrollSheet } from "@/components/PayrollSheet"
 import { ThemeToggle } from "@/components/ThemeToggle"
-import type { EmployeeInfo, PayrollInputs, PayrollResult, PayrollEntry } from "@/types/payroll"
+import type { EmployeeInfo, PayrollInputs, PayrollResult, PayrollEntry, Signatory } from "@/types/payroll"
 import { exportConsolidatedPayrollPdf, exportBulkPayslipsPdf } from "@/lib/exportPdf"
 import type { PayrollFormInput } from "@/lib/schema"
 import logo from "./COS-LOGO.png"
@@ -22,8 +22,10 @@ export default function Home() {
   const [entries, setEntries] = useState<PayrollEntry[]>([])
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
   const [editValues, setEditValues] = useState<PayrollFormInput | null>(null)
-  const [registerSigName, setRegisterSigName] = useState("")
-  const [registerSigTitle, setRegisterSigTitle] = useState("")
+  const [signatories, setSignatories] = useState<Signatory[]>([
+    { label: "Prepared by:", name: "", title: "" },
+    { label: "Certified Correct:", name: "", title: "" },
+  ])
 
   const handleCompute = useCallback(
     (nextResult: PayrollResult, info: EmployeeInfo, nextInputs: PayrollInputs) => {
@@ -112,8 +114,8 @@ export default function Home() {
 
   const handleExportConsolidated = useCallback(() => {
     if (entries.length === 0) return
-    exportConsolidatedPayrollPdf(entries, registerSigName, registerSigTitle)
-  }, [entries, registerSigName, registerSigTitle])
+    exportConsolidatedPayrollPdf(entries, signatories)
+  }, [entries, signatories])
 
   const handleExportPayslips = useCallback(() => {
     if (entries.length === 0) return
@@ -187,7 +189,7 @@ export default function Home() {
             gap: 2,
             bgcolor: "transparent",
             borderBottom: 1,
-            borderColor: mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+            borderColor: "rgba(255, 255, 255, 0.15)",
           }}
         >
           <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: "center", gap: 3 }}>
@@ -203,7 +205,7 @@ export default function Home() {
                     width: 8,
                     height: 8,
                     borderRadius: "50%",
-                    bgcolor: mode === "dark" ? "#34d399" : "#059669",
+                    bgcolor: "#34d399",
                     animation: "pulse 2s infinite",
                     "@keyframes pulse": {
                       "0%, 100%": { opacity: 1 },
@@ -215,8 +217,8 @@ export default function Home() {
                   label="Philippine Fiber Industry Development Authority"
                   size="small"
                   sx={{
-                    bgcolor: mode === "dark" ? "rgba(52, 211, 153, 0.15)" : "rgba(5, 150, 105, 0.1)",
-                    color: mode === "dark" ? "#6ee7b7" : "#047857",
+                    bgcolor: "rgba(52, 211, 153, 0.15)",
+                    color: "#6ee7b7",
                     fontWeight: 600,
                     fontSize: "0.75rem",
                     letterSpacing: 1,
@@ -261,10 +263,8 @@ export default function Home() {
             onDelete={handleDeleteEntry}
             onExportConsolidated={handleExportConsolidated}
             onExportPayslips={handleExportPayslips}
-            registerSigName={registerSigName}
-            registerSigTitle={registerSigTitle}
-            onRegisterSigNameChange={setRegisterSigName}
-            onRegisterSigTitleChange={setRegisterSigTitle}
+            signatories={signatories}
+            onSignatoriesChange={setSignatories}
           />
         </Box>
       </Container>

@@ -58,6 +58,12 @@ export interface PayrollResult {
 
 export type PayrollFormValues = EmployeeInfo & PayrollInputs
 
+export interface Signatory {
+  label: string
+  name: string
+  title: string
+}
+
 export interface PayrollEntry {
   id: string
   employee: EmployeeInfo

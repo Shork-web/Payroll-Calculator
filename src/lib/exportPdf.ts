@@ -1,7 +1,7 @@
 import jsPDF from "jspdf"
 
 import { formatPayPeriod } from "@/lib/format"
-import type { EmployeeInfo, PayrollInputs, PayrollResult, PayrollEntry } from "@/types/payroll"
+import type { EmployeeInfo, PayrollInputs, PayrollResult, PayrollEntry, Signatory } from "@/types/payroll"
 
 type Doc = InstanceType<typeof jsPDF>
 
@@ -632,8 +632,7 @@ export async function exportPayslipPdf(
 
 export async function exportConsolidatedPayrollPdf(
   entries: PayrollEntry[],
-  sigName: string,
-  sigTitle: string,
+  signatories: Signatory[],
 ): Promise<void> {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" })
   const pageW = 297
@@ -888,28 +887,53 @@ export async function exportConsolidatedPayrollPdf(
     y = 25
   }
 
-  // ── Signatory ──
-  const sigStartX = margin + 185
+  // ── Signatories ──
+  if (signatories && signatories.length > 0) {
+    const numSigs = signatories.length
+    const usableW = RM - margin
 
-  doc.setFont("helvetica", "normal")
-  doc.setFontSize(8.5)
-  doc.setTextColor(0, 0, 0)
-  doc.text("Certified Correct:", sigStartX, y)
+    if (y > 175) {
+      doc.addPage()
+      y = 25
+    }
 
-  y += 14
-  doc.setDrawColor(80, 80, 80)
-  doc.setLineWidth(0.3)
-  doc.line(sigStartX, y, RM - 3, y)
+    const initialY = y
+    signatories.forEach((sig, index) => {
+      y = initialY
+      
+      let sigStartX = margin
+      let lineW = 75
+      if (numSigs === 1) {
+        sigStartX = margin + 185
+      } else {
+        const colW = usableW / numSigs
+        sigStartX = margin + index * colW + 5
+        lineW = colW - 15
+      }
+      
+      const lineEndX = sigStartX + lineW
 
-  doc.setFont("helvetica", "bold")
-  doc.setFontSize(9)
-  doc.setTextColor(0, 0, 0)
-  doc.text((sigName || "").toUpperCase() || "(No Signatory Configured)", sigStartX, y + 5)
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(8.5)
+      doc.setTextColor(0, 0, 0)
+      doc.text(sig.label || "Certified Correct:", sigStartX, y)
 
-  doc.setFont("helvetica", "normal")
-  doc.setFontSize(8)
-  doc.setTextColor(80, 80, 80)
-  doc.text(sigTitle || "Authorized Signatory", sigStartX, y + 9.5)
+      y += 14
+      doc.setDrawColor(80, 80, 80)
+      doc.setLineWidth(0.3)
+      doc.line(sigStartX, y, lineEndX, y)
+
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(9)
+      doc.setTextColor(0, 0, 0)
+      doc.text((sig.name || "").toUpperCase() || "(No Signatory Name)", sigStartX, y + 5)
+
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(8)
+      doc.setTextColor(80, 80, 80)
+      doc.text(sig.title || "", sigStartX, y + 9.5)
+    })
+  }
 
   doc.save("Consolidated_Payroll_Register.pdf")
 }
