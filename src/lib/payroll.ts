@@ -1,6 +1,7 @@
 import type { PayrollInputs, PayrollResult } from "@/types/payroll"
 import { computeSemiMonthlyPayroll, getSemiMonthlyEarned } from "./calculations/semiMonthly"
 import { computeDailyPayroll, getDailyEarned } from "./calculations/daily"
+import { computeMonthlyPayroll, getMonthlyEarned } from "./calculations/monthly"
 import { round, roundUp, PREMIUM_RATE, SEMI_MONTHLY_EXEMPTION } from "./calculations/shared"
 
 export { SEMI_MONTHLY_EXEMPTION, roundUp }
@@ -33,7 +34,7 @@ export function estimateGrossPay(input: PayrollComputationInput): number {
 /** Max overpayment before gross would be wiped. */
 export function estimateMaxOverpayment(
   monthlyRate: number,
-  computationType: "semi-monthly" | "daily",
+  computationType: "semi-monthly" | "daily" | "monthly",
   workingDays: number,
   periodStart: string,
   periodEnd: string
@@ -41,6 +42,8 @@ export function estimateMaxOverpayment(
   let earned = 0
   if (computationType === "daily") {
     earned = getDailyEarned(monthlyRate, workingDays, periodStart, periodEnd)
+  } else if (computationType === "monthly") {
+    earned = getMonthlyEarned(monthlyRate)
   } else {
     earned = getSemiMonthlyEarned(monthlyRate)
   }
@@ -51,6 +54,8 @@ export function estimateMaxOverpayment(
 export function computePayroll(inputs: PayrollInputs): PayrollResult {
   if (inputs.computationType === "daily") {
     return computeDailyPayroll(inputs)
+  } else if (inputs.computationType === "monthly") {
+    return computeMonthlyPayroll(inputs)
   }
   return computeSemiMonthlyPayroll(inputs)
 }

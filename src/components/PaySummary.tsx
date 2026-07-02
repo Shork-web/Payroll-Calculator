@@ -20,13 +20,15 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
   const formatValue = (value: number | undefined) =>
     value === undefined ? PLACEHOLDER : formatPeso(value)
 
-  const exemptionLabel = `After ₱${formatPeso(SEMI_MONTHLY_EXEMPTION)} exemption`
+  const exemptionLabel = `After ₱${formatPeso(result?.exemptionLimit ?? SEMI_MONTHLY_EXEMPTION)} exemption`
   const displayGross = result ? result.total + result.premium : undefined
 
   const earnedSubtitle = result
     ? result.computationType === "daily"
       ? `Daily rate (₱${formatPeso(result.dailyRate)}) × ${result.periodWorkingDays} weekdays`
-      : "Monthly rate ÷ 2 (fixed base)"
+      : result.computationType === "monthly"
+        ? "Monthly rate (fixed base)"
+        : "Monthly rate ÷ 2 (fixed base)"
     : undefined
 
   const lateSubtitle = result && inputs && inputs.lateMinutes > 0

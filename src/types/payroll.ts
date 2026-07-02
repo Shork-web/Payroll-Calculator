@@ -21,7 +21,7 @@ export interface PayrollInputs {
   lateDates?: string | undefined
   undertimeDates?: string | undefined
   lateIncidents?: Array<{ date: string; minutes: number; type: "late" | "undertime" }> | undefined
-  computationType: "semi-monthly" | "daily"
+  computationType: "semi-monthly" | "daily" | "monthly"
   additionalTax: number
 }
 
@@ -48,7 +48,8 @@ export interface PayrollResult {
   tax: number
   totalDeductions: number
   netPay: number
-  computationType: "semi-monthly" | "daily"
+  computationType: "semi-monthly" | "daily" | "monthly"
+  exemptionLimit: number
 }
 
 

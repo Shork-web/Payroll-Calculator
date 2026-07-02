@@ -157,6 +157,29 @@ describe("computePayroll", () => {
     expect(result.tax).toBe(789.17)
     expect(result.netPay).toBe(15_410.83)
   })
+
+  it("calculates using full monthly rate for monthly computation mode", () => {
+    const result = computePayroll({
+      monthlyRate: 27_000,
+      workingDays: 21,
+      periodStart: "2026-05-01",
+      periodEnd: "2026-05-31",
+      lateMinutes: 7,
+      absentDays: 0,
+      overpayment: 1_227.3,
+      computationType: "monthly",
+      additionalTax: 0,
+    })
+
+    expect(result.earned).toBe(27_000)
+    expect(result.exemptionLimit).toBe(20_833.34)
+    expect(result.lateDeduction).toBe(18.76)
+    expect(result.total).toBe(26_981.24)
+    expect(result.premium).toBe(5_396.25)
+    expect(result.grossPay).toBe(30_904.73)
+    expect(result.tax).toBe(503.57)
+    expect(result.netPay).toBe(30_401.16)
+  })
 })
 
 describe("payrollSchema overpayment validation", () => {
@@ -198,6 +221,28 @@ describe("payrollSchema overpayment validation", () => {
     if (!result.success) {
       const messages = result.error.issues.map((issue) => issue.message).join(" ")
       expect(messages).toMatch(/cannot exceed daily earned/i)
+    }
+  })
+
+  it("rejects overpayment greater than monthly earned plus premium", () => {
+    const result = payrollSchema.safeParse({
+      name: "Test User",
+      position: "Staff",
+      periodStart: "2026-05-01",
+      periodEnd: "2026-05-31",
+      monthlyRate: 27_000,
+      workingDays: 21,
+      lateMinutes: 0,
+      absentDays: 0,
+      overpayment: 35_000,
+      computationType: "monthly",
+      additionalTax: 0,
+    })
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const messages = result.error.issues.map((issue) => issue.message).join(" ")
+      expect(messages).toMatch(/cannot exceed monthly earned/i)
     }
   })
 })

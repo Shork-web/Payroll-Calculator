@@ -71,7 +71,12 @@ export async function exportPayrollPdf(
   doc.setFont("helvetica", "normal")
   doc.setFontSize(9)
   doc.setTextColor(0, 0, 0) // Black
-  doc.text(`For the Period: ${period} (${result.computationType === "daily" ? "Daily" : "Semi-Monthly"})`, pageW / 2, y, { align: "center" })
+  const modeLabel = result.computationType === "daily"
+    ? "Daily"
+    : result.computationType === "monthly"
+      ? "Monthly"
+      : "Semi-Monthly"
+  doc.text(`For the Period: ${period} (${modeLabel})`, pageW / 2, y, { align: "center" })
 
   y += 4.5
   doc.setFont("helvetica", "bold")
@@ -200,6 +205,8 @@ export async function exportPayrollPdf(
   rowIndex = 0
   if (result.computationType === "daily") {
     drawRow(`Base Pay (${n(dailyRate)} × ${result.periodWorkingDays} days)`, n(earned))
+  } else if (result.computationType === "monthly") {
+    drawRow(`Base Pay (${n(monthlyRate)})`, n(earned))
   } else {
     drawRow(`Base Pay (${n(monthlyRate)} ÷ 2)`, n(earned))
   }
@@ -438,7 +445,12 @@ export async function exportPayslipPdf(
   doc.text(`Position: ${employee.position}`, boxX + 8, boxY + 35)
 
   // Period:
-  doc.text(`Period: ${period} (${result.computationType === "daily" ? "Daily" : "Semi-Monthly"})`, boxX + 8, boxY + 41)
+  const modeLabel2 = result.computationType === "daily"
+    ? "Daily"
+    : result.computationType === "monthly"
+      ? "Monthly"
+      : "Semi-Monthly"
+  doc.text(`Period: ${period} (${modeLabel2})`, boxX + 8, boxY + 41)
 
   // Table Top Y
   const tableY = boxY + 45

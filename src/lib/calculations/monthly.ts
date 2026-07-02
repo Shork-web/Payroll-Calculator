@@ -4,23 +4,18 @@ import {
   HOURS_PER_DAY,
   PREMIUM_RATE,
   TAX_RATE,
-  SEMI_MONTHLY_EXEMPTION,
   round,
   roundUp
 } from "./shared"
 
-export function getDailyEarned(
-  monthlyRate: number,
-  workingDays: number,
-  periodStart: string,
-  periodEnd: string
-): number {
-  const periodWorkingDays = computeWorkingDaysInRange(periodStart, periodEnd)
-  const dailyRate = round(monthlyRate / workingDays)
-  return roundUp(dailyRate * periodWorkingDays)
+// Monthly exemption: 250,000 / 12 = 20,833.333 -> roundUp is 20,833.34
+export const MONTHLY_EXEMPTION = roundUp(250_000 / 12)
+
+export function getMonthlyEarned(monthlyRate: number): number {
+  return roundUp(monthlyRate)
 }
 
-export function computeDailyPayroll(inputs: PayrollInputs): PayrollResult {
+export function computeMonthlyPayroll(inputs: PayrollInputs): PayrollResult {
   const { monthlyRate, workingDays, periodStart, periodEnd, lateMinutes, undertimeMinutes, absentDays } = inputs
   const overpayment = round(inputs.overpayment ?? 0)
 
@@ -29,7 +24,7 @@ export function computeDailyPayroll(inputs: PayrollInputs): PayrollResult {
   const hourlyRate = roundUp(dailyRate / HOURS_PER_DAY)
   const perMinRate = roundUp(dailyRate / HOURS_PER_DAY / 60)
 
-  const earned = getDailyEarned(monthlyRate, workingDays, periodStart, periodEnd)
+  const earned = getMonthlyEarned(monthlyRate)
   const absentDeduction = roundUp(dailyRate * absentDays)
   const lateDeduction = roundUp(perMinRate * lateMinutes)
   const undertimeDeduction = roundUp(perMinRate * (undertimeMinutes ?? 0))
@@ -39,7 +34,7 @@ export function computeDailyPayroll(inputs: PayrollInputs): PayrollResult {
   const overpaymentPremium = round(overpayment * PREMIUM_RATE)
 
   const grossPay = round(total + premium - overpayment - overpaymentPremium)
-  const taxableIncome = round(Math.max(0, grossPay - SEMI_MONTHLY_EXEMPTION))
+  const taxableIncome = round(Math.max(0, grossPay - MONTHLY_EXEMPTION))
   const additionalTax = round(inputs.additionalTax ?? 0)
   const baseTax = taxableIncome > 0 ? round(taxableIncome * TAX_RATE) : 0
   const tax = round(baseTax + additionalTax)
@@ -66,7 +61,7 @@ export function computeDailyPayroll(inputs: PayrollInputs): PayrollResult {
     tax,
     totalDeductions,
     netPay,
-    computationType: "daily",
-    exemptionLimit: SEMI_MONTHLY_EXEMPTION,
+    computationType: "monthly",
+    exemptionLimit: MONTHLY_EXEMPTION,
   }
 }

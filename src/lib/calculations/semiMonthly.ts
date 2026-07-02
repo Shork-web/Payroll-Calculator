@@ -60,5 +60,6 @@ export function computeSemiMonthlyPayroll(inputs: PayrollInputs): PayrollResult 
     totalDeductions,
     netPay,
     computationType: "semi-monthly",
+    exemptionLimit: SEMI_MONTHLY_EXEMPTION,
   }
 }

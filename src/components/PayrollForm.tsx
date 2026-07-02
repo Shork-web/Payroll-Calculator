@@ -112,7 +112,7 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
   const periodStartValue = watch("periodStart")
 
   useEffect(() => {
-    if (computationTypeValue === "daily" && periodStartValue) {
+    if ((computationTypeValue === "daily" || computationTypeValue === "monthly") && periodStartValue) {
       const { year, month } = getMonthFromDateString(periodStartValue)
       if (year > 0) {
         const weekdays = computeWeekdaysInMonth(year, month)
@@ -290,6 +290,7 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
             >
               <MenuItem value="semi-monthly">Semi-Monthly Computation (Fixed Base)</MenuItem>
               <MenuItem value="daily">Daily Computation (Daily Rate × Period Days)</MenuItem>
+              <MenuItem value="monthly">Monthly Computation (Full Month)</MenuItem>
             </TextField>
 
             <Box>
@@ -407,12 +408,12 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
               label="Working Days in Month"
               type="number"
               fullWidth
-              disabled={computationTypeValue === "daily"}
+              disabled={computationTypeValue === "daily" || computationTypeValue === "monthly"}
               slotProps={{ htmlInput: { step: 1, min: 1, max: 31 } }}
               placeholder="Enter working days"
               error={!!errors.workingDays?.message}
               helperText={
-                computationTypeValue === "daily"
+                computationTypeValue === "daily" || computationTypeValue === "monthly"
                   ? "Automatically calculated from cutoff dates"
                   : errors.workingDays?.message
               }
