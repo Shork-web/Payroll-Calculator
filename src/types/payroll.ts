@@ -21,7 +21,10 @@ export interface PayrollInputs {
   lateDates?: string | undefined
   undertimeDates?: string | undefined
   lateIncidents?: Array<{ date: string; minutes: number; type: "late" | "undertime" }> | undefined
+  computationType: "semi-monthly" | "daily"
+  additionalTax: number
 }
+
 
 export interface PayrollResult {
   workingDays: number
@@ -30,7 +33,7 @@ export interface PayrollResult {
   dailyRate: number
   hourlyRate: number
   perMinRate: number
-  /** Semi-monthly base (monthly rate ÷ 2). */
+  /** Semi-monthly base (monthly rate ÷ 2) or daily-rate base. */
   earned: number
   /** Earned minus absent, late, and undertime, before premium. */
   total: number
@@ -45,6 +48,8 @@ export interface PayrollResult {
   tax: number
   totalDeductions: number
   netPay: number
+  computationType: "semi-monthly" | "daily"
 }
+
 
 export type PayrollFormValues = EmployeeInfo & PayrollInputs

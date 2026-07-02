@@ -67,3 +67,20 @@ export function computeWorkingDays(year: number, month: number): number {
 
   return count
 }
+
+/** Weekdays (Mon–Fri) in the month. Month is 1-indexed. */
+export function computeWeekdaysInMonth(year: number, month: number): number {
+  const lastDay = new Date(year, month, 0).getDate()
+  let count = 0
+
+  for (let day = 1; day <= lastDay; day++) {
+    const date = new Date(year, month - 1, day)
+    const dayOfWeek = date.getDay()
+
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      count++
+    }
+  }
+
+  return count
+}

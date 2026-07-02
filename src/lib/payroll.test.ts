@@ -119,6 +119,44 @@ describe("computePayroll", () => {
     expect(result.total).toBe(13_436)
     expect(result.premium).toBe(2_687.2)
   })
+
+  it("calculates using daily rate for daily computation mode", () => {
+    const result = computePayroll({
+      monthlyRate: 27_000,
+      workingDays: 21,
+      ...MAY_FIRST_CUTOFF,
+      lateMinutes: 7,
+      absentDays: 0,
+      overpayment: 1_227.3,
+      computationType: "daily",
+    })
+
+    expect(result.dailyRate).toBe(1_285.71)
+    expect(result.periodWorkingDays).toBe(11)
+    expect(result.earned).toBe(14_142.81)
+    expect(result.lateDeduction).toBe(18.76)
+    expect(result.total).toBe(14_124.05)
+    expect(result.premium).toBe(2_824.81)
+    expect(result.grossPay).toBe(15_476.1)
+    expect(result.tax).toBe(252.97)
+    expect(result.netPay).toBe(15_223.13)
+  })
+
+  it("applies additionalTax to deductions and net pay correctly", () => {
+    const result = computePayroll({
+      monthlyRate: 27_000,
+      workingDays: 21,
+      ...MAY_FIRST_CUTOFF,
+      lateMinutes: 0,
+      absentDays: 0,
+      overpayment: 0,
+      computationType: "semi-monthly",
+      additionalTax: 500,
+    })
+
+    expect(result.tax).toBe(789.17)
+    expect(result.netPay).toBe(15_410.83)
+  })
 })
 
 describe("payrollSchema overpayment validation", () => {
@@ -139,6 +177,27 @@ describe("payrollSchema overpayment validation", () => {
     if (!result.success) {
       const messages = result.error.issues.map((issue) => issue.message).join(" ")
       expect(messages).toMatch(/cannot exceed semi-monthly earned/i)
+    }
+  })
+
+  it("rejects overpayment greater than daily earned plus premium", () => {
+    const result = payrollSchema.safeParse({
+      name: "Test User",
+      position: "Staff",
+      periodStart: "2026-05-01",
+      periodEnd: "2026-05-15",
+      monthlyRate: 27_000,
+      workingDays: 21,
+      lateMinutes: 0,
+      absentDays: 0,
+      overpayment: 20_000,
+      computationType: "daily",
+    })
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const messages = result.error.issues.map((issue) => issue.message).join(" ")
+      expect(messages).toMatch(/cannot exceed daily earned/i)
     }
   })
 })

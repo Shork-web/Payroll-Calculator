@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react"
-import { Box, Typography, Paper, Stack, Divider, useTheme } from "@mui/material"
+import { Box, Typography, Paper, useTheme } from "@mui/material"
 
 import { formatPeso } from "@/lib/format"
 import { SEMI_MONTHLY_EXEMPTION } from "@/lib/payroll"
@@ -23,12 +23,24 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
   const exemptionLabel = `After ₱${formatPeso(SEMI_MONTHLY_EXEMPTION)} exemption`
   const displayGross = result ? result.total + result.premium : undefined
 
+  const earnedSubtitle = result
+    ? result.computationType === "daily"
+      ? `Daily rate (₱${formatPeso(result.dailyRate)}) × ${result.periodWorkingDays} weekdays`
+      : "Monthly rate ÷ 2 (fixed base)"
+    : undefined
+
   const lateSubtitle = result && inputs && inputs.lateMinutes > 0
     ? `${inputs.lateMinutes} mins${inputs.lateDates ? ` — Late on ${inputs.lateDates}` : ""}`
     : undefined
 
   const undertimeSubtitle = result && inputs && (inputs.undertimeMinutes ?? 0) > 0
     ? `${inputs.undertimeMinutes} mins${inputs.undertimeDates ? ` — UT on ${inputs.undertimeDates}` : ""}`
+    : undefined
+
+  const showAdditionalTax = inputs && inputs.additionalTax > 0
+  const taxLabel = showAdditionalTax ? "Less: Withholding Tax" : "Less: 5% Withholding Tax"
+  const taxSubtitle = result && inputs && showAdditionalTax
+    ? `5% WT (₱${formatPeso(result.tax - inputs.additionalTax)}) + Add. Tax (₱${formatPeso(inputs.additionalTax)})`
     : undefined
 
   return (
@@ -69,7 +81,7 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
         </Typography>
         <MetricCard
           label="Earned Pay"
-          subtitle="Monthly rate ÷ 2 (fixed base)"
+          subtitle={earnedSubtitle}
           value={formatValue(result?.earned)}
         />
         <MetricCard
@@ -153,7 +165,8 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
           value={formatValue(result?.taxableIncome)}
         />
         <MetricCard
-          label="Less: 5% Withholding Tax"
+          label={taxLabel}
+          subtitle={taxSubtitle}
           value={formatValue(result?.tax)}
           valueColor={result?.tax && result.tax > 0 ? "error" : "text.disabled"}
         />

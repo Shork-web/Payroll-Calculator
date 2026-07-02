@@ -29,6 +29,7 @@ export const payrollNumericSchema = z.object({
   undertimeMinutes: coerceFormNumber().pipe(z.number().min(0)),
   absentDays: coerceFormNumber().pipe(z.number().min(0)),
   overpayment: overpaymentField,
+  additionalTax: coerceFormNumber().pipe(z.number().min(0)),
 })
 
 const lateIncidentSchema = z.object({
@@ -54,18 +55,27 @@ export const payrollSchema = z
     lateDates: z.string().optional().default(""),
     undertimeDates: z.string().optional().default(""),
     lateIncidents: z.array(lateIncidentSchema).default([]),
+    computationType: z.enum(["semi-monthly", "daily"]).default("semi-monthly"),
+    additionalTax: coerceFormNumber().pipe(z.number().min(0)),
   })
   .refine((data) => data.periodEnd >= data.periodStart, {
     message: "End date must be on or after start date",
     path: ["periodEnd"],
   })
   .superRefine((data, ctx) => {
-    const maxOverpayment = estimateMaxOverpayment(data.monthlyRate)
+    const maxOverpayment = estimateMaxOverpayment(
+      data.monthlyRate,
+      data.computationType,
+      data.workingDays,
+      data.periodStart,
+      data.periodEnd
+    )
 
     if (data.overpayment > maxOverpayment) {
+      const label = data.computationType === "daily" ? "daily earned" : "semi-monthly earned"
       ctx.addIssue({
         code: "custom",
-        message: `Overpayment cannot exceed semi-monthly earned plus premium (${formatPeso(maxOverpayment)})`,
+        message: `Overpayment cannot exceed ${label} plus premium (${formatPeso(maxOverpayment)})`,
         path: ["overpayment"],
       })
     }

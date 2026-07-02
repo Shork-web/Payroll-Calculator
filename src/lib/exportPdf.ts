@@ -71,7 +71,7 @@ export async function exportPayrollPdf(
   doc.setFont("helvetica", "normal")
   doc.setFontSize(9)
   doc.setTextColor(0, 0, 0) // Black
-  doc.text(`For the Period: ${period}`, pageW / 2, y, { align: "center" })
+  doc.text(`For the Period: ${period} (${result.computationType === "daily" ? "Daily" : "Semi-Monthly"})`, pageW / 2, y, { align: "center" })
 
   y += 4.5
   doc.setFont("helvetica", "bold")
@@ -198,7 +198,11 @@ export async function exportPayrollPdf(
   y += 6.5
 
   rowIndex = 0
-  drawRow(`Base Pay (${n(monthlyRate)} ÷ 2)`, n(earned))
+  if (result.computationType === "daily") {
+    drawRow(`Base Pay (${n(dailyRate)} × ${result.periodWorkingDays} days)`, n(earned))
+  } else {
+    drawRow(`Base Pay (${n(monthlyRate)} ÷ 2)`, n(earned))
+  }
 
   if (absentDays > 0) {
     drawRow(`Less: Absences (${absentDays} day${absentDays !== 1 ? "s" : ""})`, `(${n(absentDeduction)})`, false, true)
@@ -270,7 +274,12 @@ export async function exportPayrollPdf(
   rowIndex = 0
   let hasDeductions = false
   if (tax > 0) {
-    drawRow("Withholding Tax (5%)", `(${n(tax)})`, false, true)
+    const addTax = inputs.additionalTax ?? 0
+    if (addTax > 0) {
+      drawRow(`Withholding Tax (5% + ₱${n(addTax)} Add.)`, `(${n(tax)})`, false, true)
+    } else {
+      drawRow("Withholding Tax (5%)", `(${n(tax)})`, false, true)
+    }
     hasDeductions = true
   }
   if (overpayment > 0) {
@@ -429,7 +438,7 @@ export async function exportPayslipPdf(
   doc.text(`Position: ${employee.position}`, boxX + 8, boxY + 35)
 
   // Period:
-  doc.text(`Period: ${period}`, boxX + 8, boxY + 41)
+  doc.text(`Period: ${period} (${result.computationType === "daily" ? "Daily" : "Semi-Monthly"})`, boxX + 8, boxY + 41)
 
   // Table Top Y
   const tableY = boxY + 45
@@ -530,7 +539,9 @@ export async function exportPayslipPdf(
   rowY += 6.5
   doc.text("20% Premium", boxX + 2, rowY)
   doc.text(n(premium), boxX + 88, rowY, { align: "right" })
-  doc.text("5% tax", boxX + 92, rowY)
+  const addTax = inputs.additionalTax ?? 0
+  const taxLabelStr = addTax > 0 ? `Tax (5% + ₱${n(addTax)})` : "5% tax"
+  doc.text(taxLabelStr, boxX + 92, rowY)
   if (tax > 0) {
     doc.text(n(tax), boxX + 178, rowY, { align: "right" })
   }
