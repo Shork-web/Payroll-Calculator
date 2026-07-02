@@ -39,6 +39,10 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
     ? `${inputs.undertimeMinutes} mins${inputs.undertimeDates ? ` — UT on ${inputs.undertimeDates}` : ""}`
     : undefined
 
+  const absentSubtitle = result && inputs && inputs.absentDays > 0
+    ? `${inputs.absentDays} day${inputs.absentDays > 1 ? "s" : ""}${inputs.absentDates ? ` — Absent on ${inputs.absentDates}` : ""}`
+    : undefined
+
   const showAdditionalTax = inputs && inputs.additionalTax > 0
   const taxLabel = showAdditionalTax ? "Less: Withholding Tax" : "Less: 5% Withholding Tax"
   const taxSubtitle = result && inputs && showAdditionalTax
@@ -46,10 +50,21 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
     : undefined
 
   return (
-    <Paper sx={{ p: 3, elevation: 2 }}>
+    <Paper
+      elevation={0}
+      sx={{
+        p: { xs: 2.5, sm: 4 },
+        borderRadius: 4,
+        border: 1,
+        borderColor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+        bgcolor: mode === "dark" ? "rgba(30,41,59,0.3)" : "background.paper",
+        backdropFilter: "blur(8px)",
+        boxShadow: mode === "dark" ? "0 10px 30px rgba(0,0,0,0.3)" : "0 10px 30px rgba(0,0,0,0.03)",
+      }}
+    >
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-          Pay summary
+        <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: -0.5 }}>
+          Pay Summary
         </Typography>
         {action}
       </Box>
@@ -88,9 +103,29 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
         />
         <MetricCard
           label="Less: Absent"
+          subtitle={absentSubtitle}
           value={formatValue(result?.absentDeduction)}
           valueColor={result?.absentDeduction && result.absentDeduction > 0 ? "error" : "text.disabled"}
-        />
+        >
+          {result && inputs && inputs.lateIncidents && inputs.lateIncidents.length > 0 && (
+            <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: "divider", display: "flex", flexDirection: "column", gap: 1 }}>
+              {inputs.lateIncidents
+                .filter((incident) => incident.type === "absent")
+                .map((incident, index) => {
+                  if (!incident.date?.trim() || !(Number(incident.days) > 0)) {
+                    return null
+                  }
+                  const incidentDeduction = Number(incident.days) * result.dailyRate
+                  return (
+                    <Box key={index} sx={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "text.secondary" }}>
+                      <span>• {incident.date} ({incident.days} day{Number(incident.days) > 1 ? "s" : ""})</span>
+                      <Typography sx={{ fontWeight: 600 }}>{formatPeso(incidentDeduction)}</Typography>
+                    </Box>
+                  )
+                })}
+            </Box>
+          )}
+        </MetricCard>
         <MetricCard
           label="Less: Late"
           subtitle={lateSubtitle}

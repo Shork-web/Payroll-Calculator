@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect } from "react"
-import { useForm, useFieldArray } from "react-hook-form"
+import { useForm, useFieldArray, Controller } from "react-hook-form"
 import {
   Box,
   TextField,
@@ -110,6 +110,7 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
 
   const computationTypeValue = watch("computationType")
   const periodStartValue = watch("periodStart")
+  const lateIncidentsValue = watch("lateIncidents")
 
   useEffect(() => {
     if ((computationTypeValue === "daily" || computationTypeValue === "monthly") && periodStartValue) {
@@ -126,18 +127,28 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
       const values = getValues()
       const rawIncidents = values.lateIncidents || []
       const typedIncidents = rawIncidents
-        .filter(item => item.date?.trim() && Number(item.minutes) > 0)
+        .filter(item => {
+          const isTimeType = item.type === "late" || item.type === "undertime" || !item.type
+          const isAbsentType = item.type === "absent"
+          return (
+            item.date?.trim() &&
+            ((isTimeType && Number(item.minutes) > 0) || (isAbsentType && Number(item.days) > 0))
+          )
+        })
         .map(item => ({
           date: item.date,
-          minutes: Number(item.minutes) || 0,
-          type: (item.type || "late") as "late" | "undertime",
+          minutes: item.type === "absent" ? 0 : Number(item.minutes) || 0,
+          days: item.type === "absent" ? Number(item.days) || 0 : 0,
+          type: (item.type || "late") as "late" | "undertime" | "absent",
         }))
 
       const lateIncidentsOnly = typedIncidents.filter(item => item.type === "late")
       const undertimeIncidentsOnly = typedIncidents.filter(item => item.type === "undertime")
+      const absentIncidentsOnly = typedIncidents.filter(item => item.type === "absent")
 
       const totalLateMinutes = lateIncidentsOnly.reduce((sum, item) => sum + item.minutes, 0)
       const totalUndertimeMinutes = undertimeIncidentsOnly.reduce((sum, item) => sum + item.minutes, 0)
+      const totalAbsentDays = absentIncidentsOnly.reduce((sum, item) => sum + item.days, 0)
 
       const computedLateDates = lateIncidentsOnly
         .map(item => `${item.date} (${item.minutes}m)`)
@@ -147,12 +158,16 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
         .map(item => `${item.date} (${item.minutes}m)`)
         .join(", ")
 
+      const computedAbsentDates = absentIncidentsOnly
+        .map(item => `${item.date} (${item.days}d)`)
+        .join(", ")
+
       const numericParsed = payrollNumericSchema.safeParse({
         monthlyRate: values.monthlyRate,
         workingDays: values.workingDays,
         lateMinutes: totalLateMinutes,
         undertimeMinutes: totalUndertimeMinutes,
-        absentDays: values.absentDays,
+        absentDays: totalAbsentDays,
         overpayment: values.overpayment,
         additionalTax: values.additionalTax,
       })
@@ -172,6 +187,7 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
         periodEnd,
         lateDates: computedLateDates,
         undertimeDates: computedUndertimeDates,
+        absentDates: computedAbsentDates,
         lateIncidents: typedIncidents,
         computationType: computationType || "semi-monthly",
       }
@@ -244,7 +260,7 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
             border: 1,
             borderColor: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
             borderLeft: `5px solid ${mode === "dark" ? "#34d399" : "#059669"}`,
-            bgcolor: mode === "dark" ? "rgba(255,255,255,0.01)" : "rgba(248,250,252,0.5)",
+            bgcolor: mode === "dark" ? "rgba(255,255,255,0.01)" : "rgba(15, 23, 42, 0.025)",
             transition: "all 0.3s ease",
             "&:hover": {
               borderColor: mode === "dark" ? "rgba(52,211,153,0.3)" : "rgba(5,150,105,0.3)",
@@ -279,19 +295,25 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
               />
             </Box>
             
-            <TextField
-              id="computationType"
-              select
-              label="Computation Mode"
-              fullWidth
-              error={!!errors.computationType?.message}
-              helperText={errors.computationType?.message}
-              {...register("computationType")}
-            >
-              <MenuItem value="semi-monthly">Semi-Monthly Computation (Fixed Base)</MenuItem>
-              <MenuItem value="daily">Daily Computation (Daily Rate × Period Days)</MenuItem>
-              <MenuItem value="monthly">Monthly Computation (Full Month)</MenuItem>
-            </TextField>
+            <Controller
+              name="computationType"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  id="computationType"
+                  select
+                  label="Computation Mode"
+                  fullWidth
+                  error={!!errors.computationType?.message}
+                  helperText={errors.computationType?.message}
+                >
+                  <MenuItem value="semi-monthly">Semi-Monthly Computation (Fixed Base)</MenuItem>
+                  <MenuItem value="daily">Daily Computation (Daily Rate × Period Days)</MenuItem>
+                  <MenuItem value="monthly">Monthly Computation (Full Month)</MenuItem>
+                </TextField>
+              )}
+            />
 
             <Box>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: "text.secondary", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: 0.5 }}>
@@ -334,7 +356,7 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
             border: 1,
             borderColor: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
             borderLeft: `5px solid ${mode === "dark" ? "#34d399" : "#059669"}`,
-            bgcolor: mode === "dark" ? "rgba(255,255,255,0.01)" : "rgba(248,250,252,0.5)",
+            bgcolor: mode === "dark" ? "rgba(255,255,255,0.01)" : "rgba(15, 23, 42, 0.025)",
             transition: "all 0.3s ease",
             "&:hover": {
               borderColor: mode === "dark" ? "rgba(52,211,153,0.3)" : "rgba(5,150,105,0.3)",
@@ -377,7 +399,7 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
             border: 1,
             borderColor: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
             borderLeft: `5px solid ${mode === "dark" ? "#34d399" : "#059669"}`,
-            bgcolor: mode === "dark" ? "rgba(255,255,255,0.01)" : "rgba(248,250,252,0.5)",
+            bgcolor: mode === "dark" ? "rgba(255,255,255,0.01)" : "rgba(15, 23, 42, 0.025)",
             transition: "all 0.3s ease",
             "&:hover": {
               borderColor: mode === "dark" ? "rgba(52,211,153,0.3)" : "rgba(5,150,105,0.3)",
@@ -435,7 +457,7 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
             border: 1,
             borderColor: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
             borderLeft: `5px solid ${mode === "dark" ? "#34d399" : "#059669"}`,
-            bgcolor: mode === "dark" ? "rgba(255,255,255,0.01)" : "rgba(248,250,252,0.5)",
+            bgcolor: mode === "dark" ? "rgba(255,255,255,0.01)" : "rgba(15, 23, 42, 0.025)",
             transition: "all 0.3s ease",
             "&:hover": {
               borderColor: mode === "dark" ? "rgba(52,211,153,0.3)" : "rgba(5,150,105,0.3)",
@@ -462,7 +484,7 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
                   variant="outlined"
                   color="success"
                   startIcon={<AddIcon />}
-                  onClick={() => append({ minutes: 0, date: "", type: "late" })}
+                  onClick={() => append({ minutes: 0, days: 0, date: "", type: "late" })}
                   sx={{
                     fontSize: "0.75rem",
                     borderRadius: 2,
@@ -526,27 +548,51 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
                       <Box sx={{ width: { xs: "100%", sm: 140 } }}>
                         <Typography variant="caption" sx={{ display: "block", mb: 0.5, fontWeight: 600 }}>Type</Typography>
                         <FormControl fullWidth size="small">
-                          <Select
-                            {...register(`lateIncidents.${index}.type` as const)}
-                            error={!!errors.lateIncidents?.[index]?.type?.message}
-                          >
-                            <MenuItem value="late">Late</MenuItem>
-                            <MenuItem value="undertime">Undertime</MenuItem>
-                          </Select>
+                          <Controller
+                            name={`lateIncidents.${index}.type` as const}
+                            control={control}
+                            render={({ field }) => (
+                              <Select
+                                {...field}
+                                error={!!errors.lateIncidents?.[index]?.type?.message}
+                              >
+                                <MenuItem value="late">Late</MenuItem>
+                                <MenuItem value="undertime">Undertime</MenuItem>
+                                <MenuItem value="absent">Absent</MenuItem>
+                              </Select>
+                            )}
+                          />
                         </FormControl>
                       </Box>
-                      <Box sx={{ width: { xs: "100%", sm: 100 } }}>
-                        <Typography variant="caption" sx={{ display: "block", mb: 0.5, fontWeight: 600 }}>Minutes</Typography>
-                        <TextField
-                          size="small"
-                          type="number"
-                          placeholder="0"
-                          fullWidth
-                          error={!!errors.lateIncidents?.[index]?.minutes?.message}
-                          helperText={errors.lateIncidents?.[index]?.minutes?.message}
-                          {...register(`lateIncidents.${index}.minutes` as const, numberFieldOptions)}
-                        />
-                      </Box>
+                      {lateIncidentsValue?.[index]?.type === "absent" ? (
+                        <Box sx={{ width: { xs: "100%", sm: 100 } }}>
+                          <Typography variant="caption" sx={{ display: "block", mb: 0.5, fontWeight: 600 }}>Days</Typography>
+                          <TextField
+                            size="small"
+                            type="number"
+                            placeholder="0"
+                            fullWidth
+                            slotProps={{ htmlInput: { step: "any", min: 0 } }}
+                            error={!!errors.lateIncidents?.[index]?.days?.message}
+                            helperText={errors.lateIncidents?.[index]?.days?.message}
+                            {...register(`lateIncidents.${index}.days` as const, numberFieldOptions)}
+                          />
+                        </Box>
+                      ) : (
+                        <Box sx={{ width: { xs: "100%", sm: 100 } }}>
+                          <Typography variant="caption" sx={{ display: "block", mb: 0.5, fontWeight: 600 }}>Minutes</Typography>
+                          <TextField
+                            size="small"
+                            type="number"
+                            placeholder="0"
+                            fullWidth
+                            slotProps={{ htmlInput: { step: 1, min: 0 } }}
+                            error={!!errors.lateIncidents?.[index]?.minutes?.message}
+                            helperText={errors.lateIncidents?.[index]?.minutes?.message}
+                            {...register(`lateIncidents.${index}.minutes` as const, numberFieldOptions)}
+                          />
+                        </Box>
+                      )}
                       <IconButton
                         onClick={() => remove(index)}
                         sx={{
@@ -576,16 +622,6 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
 
             {/* DEDUCTIONS GRID */}
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2.5 }}>
-              <TextField
-                id="absentDays"
-                label="Absent Days"
-                type="number"
-                fullWidth
-                slotProps={{ htmlInput: { step: "any" } }}
-                error={!!errors.absentDays?.message}
-                helperText={errors.absentDays?.message}
-                {...register("absentDays", numberFieldOptions)}
-              />
               <Box>
                 <TextField
                   id="overpayment"
@@ -602,7 +638,7 @@ export function PayrollForm({ onCompute, onReset }: PayrollFormProps) {
                   * Deducted from gross pay (with 20% premium surcharge).
                 </Typography>
               </Box>
-              <Box sx={{ gridColumn: { xs: "1 / -1", sm: "1 / -1" } }}>
+              <Box>
                 <TextField
                   id="additionalTax"
                   label="Additional Tax"

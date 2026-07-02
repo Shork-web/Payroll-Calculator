@@ -20,7 +20,8 @@ export interface PayrollInputs {
   overpayment: number
   lateDates?: string | undefined
   undertimeDates?: string | undefined
-  lateIncidents?: Array<{ date: string; minutes: number; type: "late" | "undertime" }> | undefined
+  absentDates?: string | undefined
+  lateIncidents?: Array<{ date: string; minutes: number; type: "late" | "undertime" | "absent"; days?: number }> | undefined
   computationType: "semi-monthly" | "daily" | "monthly"
   additionalTax: number
 }

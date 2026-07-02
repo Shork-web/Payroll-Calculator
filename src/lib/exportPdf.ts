@@ -213,6 +213,24 @@ export async function exportPayrollPdf(
 
   if (absentDays > 0) {
     drawRow(`Less: Absences (${absentDays} day${absentDays !== 1 ? "s" : ""})`, `(${n(absentDeduction)})`, false, true)
+
+    const absentIncidentsOnly = lateIncidents?.filter(i => i.type === "absent") || []
+    if (absentIncidentsOnly.length > 0) {
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(8)
+      doc.setTextColor(185, 28, 28) // Red-700 to match lates/undertime
+      
+      absentIncidentsOnly.forEach((incident) => {
+        if (incident.date?.trim() && Number(incident.days) > 0) {
+          const incidentDeduction = Number(incident.days) * dailyRate
+          doc.text(`• ${incident.date}`, pageMargin + 8, y - 1)
+          doc.text(`${incident.days} day${Number(incident.days) > 1 ? "s" : ""}`, pageMargin + 55, y - 1)
+          doc.text(n(incidentDeduction), amountCol - 4, y - 1, { align: "right" })
+          y += 4.5
+        }
+      })
+      y += 1.5
+    }
   }
 
   if (lateMinutes > 0) {

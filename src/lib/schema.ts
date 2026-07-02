@@ -35,7 +35,8 @@ export const payrollNumericSchema = z.object({
 const lateIncidentSchema = z.object({
   minutes: coerceFormNumber().pipe(z.number().min(0)),
   date: z.string().min(1, "Date/Day is required"),
-  type: z.enum(["late", "undertime"]).default("late"),
+  type: z.enum(["late", "undertime", "absent"]).default("late"),
+  days: coerceFormNumber().pipe(z.number().min(0)).default(0),
 })
 
 export const payrollSchema = z

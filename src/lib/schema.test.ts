@@ -28,8 +28,8 @@ describe("payrollSchema", () => {
       expect(result.data.lateMinutes).toBe(8)
       expect(result.data.undertimeMinutes).toBe(12)
       expect(result.data.lateIncidents).toEqual([
-        { date: "June 4", minutes: 5, type: "late" },
-        { date: "June 5", minutes: 7, type: "undertime" },
+        { date: "June 4", minutes: 5, type: "late", days: 0 },
+        { date: "June 5", minutes: 7, type: "undertime", days: 0 },
       ])
     }
   })
@@ -78,6 +78,32 @@ describe("payrollSchema", () => {
     if (result.success) {
       expect(result.data.absentDays).toBe(0)
       expect(result.data.overpayment).toBe(0)
+    }
+  })
+
+  it("parses absent incidents with days in the incidents log list", () => {
+    const result = payrollSchema.safeParse({
+      name: "Iverson G. Merto",
+      position: "Project Development Office - I",
+      periodStart: "2026-05-01",
+      periodEnd: "2026-05-15",
+      monthlyRate: "27000",
+      workingDays: "22",
+      lateMinutes: "0",
+      absentDays: "0",
+      overpayment: "0",
+      lateIncidents: [
+        { date: "June 4", minutes: "0", type: "absent", days: "1" },
+        { date: "June 5", minutes: "0", type: "absent", days: "0.5" },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.lateIncidents).toEqual([
+        { date: "June 4", minutes: 0, type: "absent", days: 1 },
+        { date: "June 5", minutes: 0, type: "absent", days: 0.5 },
+      ])
     }
   })
 })
