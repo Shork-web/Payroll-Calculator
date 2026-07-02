@@ -579,7 +579,15 @@ export async function exportPayslipPdf(
   doc.text("20% Premium", boxX + 2, rowY)
   doc.text(n(premium), boxX + 88, rowY, { align: "right" })
   const addTax = inputs.additionalTax ?? 0
-  const taxLabelStr = addTax > 0 ? `Tax (5% + ₱${n(addTax)})` : "5% tax"
+  let taxLabelStr = addTax > 0 ? `Tax (5% + ₱${n(addTax)})` : "5% tax"
+  if (addTax > 0) {
+    const details = []
+    if (inputs.additionalTaxDate) details.push(inputs.additionalTaxDate)
+    if (inputs.additionalTaxReason) details.push(inputs.additionalTaxReason)
+    if (details.length > 0) {
+      taxLabelStr += ` - ${details.join(": ")}`
+    }
+  }
   doc.text(taxLabelStr, boxX + 92, rowY)
   if (tax > 0) {
     doc.text(n(tax), boxX + 178, rowY, { align: "right" })
@@ -689,12 +697,15 @@ export async function exportConsolidatedPayrollPdf(
 
     // Period
     if (entries.length > 0) {
-      y += 4.5
-      doc.setFont("helvetica", "normal")
-      doc.setFontSize(8.5)
-      doc.setTextColor(80, 80, 80)
-      const period = formatPayPeriod(entries[0].inputs.periodStart, entries[0].inputs.periodEnd)
-      doc.text(`Pay Period: ${period}`, pageW / 2, y, { align: "center" })
+      const firstEntry = entries[0]!
+      if (firstEntry.inputs) {
+        y += 4.5
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(8.5)
+        doc.setTextColor(80, 80, 80)
+        const period = formatPayPeriod(firstEntry.inputs.periodStart, firstEntry.inputs.periodEnd)
+        doc.text(`Pay Period: ${period}`, pageW / 2, y, { align: "center" })
+      }
     }
 
     y += 6
