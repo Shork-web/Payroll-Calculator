@@ -79,6 +79,7 @@ export function EmployeeProfileSection() {
               helperText={errors.computationType?.message}
             >
               <MenuItem value="semi-monthly">Semi-Monthly Computation (Fixed Base)</MenuItem>
+              <MenuItem value="semi-monthly-no-tax">Semi-Monthly No Tax (Fixed Base, No Tax Deductions)</MenuItem>
               <MenuItem value="daily">Daily Computation (Daily Rate × Period Days)</MenuItem>
               <MenuItem value="monthly">Monthly Computation (Full Month)</MenuItem>
             </TextField>

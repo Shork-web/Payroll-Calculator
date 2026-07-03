@@ -6,8 +6,9 @@ import type { PayrollFormInput } from "@/lib/schema"
 export function DeductionsTaxSection() {
   const theme = useTheme()
   const mode = theme.palette.mode
-  const { register, formState: { errors } } = useFormContext<PayrollFormInput>()
+  const { register, watch, formState: { errors } } = useFormContext<PayrollFormInput>()
   const numberFieldOptions = { valueAsNumber: true }
+  const computationTypeValue = watch("computationType")
 
   return (
     <Box
@@ -75,69 +76,71 @@ export function DeductionsTaxSection() {
           </Typography>
         </Box>
 
-        {/* Sub-card 2: Additional Tax Withholding */}
-        <Box
-          sx={{
-            p: 2,
-            borderRadius: 2.5,
-            border: 1,
-            borderColor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-            bgcolor: mode === "dark" ? "rgba(255,255,255,0.01)" : "rgba(255,255,255,0.4)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 1.5,
-          }}
-        >
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.primary", fontSize: "0.8rem" }}>
-            Additional Tax Withholding
-          </Typography>
-          <TextField
-            id="additionalTax"
-            label="Additional Tax Amount"
-            type="number"
-            size="small"
-            fullWidth
-            slotProps={{ htmlInput: { step: "any" } }}
-            placeholder="0"
-            error={!!errors.additionalTax?.message}
-            helperText={errors.additionalTax?.message}
-            {...register("additionalTax", numberFieldOptions)}
-          />
-          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
-            <TextField
-              id="additionalTaxDate"
-              label="Tax Date / Period"
-              placeholder="e.g., June 15"
-              size="small"
-              fullWidth
-              error={!!errors.additionalTaxDate?.message}
-              helperText={errors.additionalTaxDate?.message}
-              {...register("additionalTaxDate")}
-            />
-            <TextField
-              id="additionalTaxReason"
-              label="Reason"
-              placeholder="e.g., Adjustment"
-              size="small"
-              fullWidth
-              error={!!errors.additionalTaxReason?.message}
-              helperText={errors.additionalTaxReason?.message}
-              {...register("additionalTaxReason")}
-            />
-          </Box>
-          <Typography
-            variant="caption"
+        {/* Sub-card 2: Additional Tax Withholding - Only show for computation types with tax */}
+        {computationTypeValue !== "semi-monthly-no-tax" && (
+          <Box
             sx={{
-              pt: 0.5,
-              display: "block",
-              color: "text.secondary",
-              fontSize: "0.7rem",
-              lineHeight: 1.3,
+              p: 2,
+              borderRadius: 2.5,
+              border: 1,
+              borderColor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+              bgcolor: mode === "dark" ? "rgba(255,255,255,0.01)" : "rgba(255,255,255,0.4)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 1.5,
             }}
           >
-            * Added directly to the calculated 5% withholding tax deduction.
-          </Typography>
-        </Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.primary", fontSize: "0.8rem" }}>
+              Additional Tax Withholding
+            </Typography>
+            <TextField
+              id="additionalTax"
+              label="Additional Tax Amount"
+              type="number"
+              size="small"
+              fullWidth
+              slotProps={{ htmlInput: { step: "any" } }}
+              placeholder="0"
+              error={!!errors.additionalTax?.message}
+              helperText={errors.additionalTax?.message}
+              {...register("additionalTax", numberFieldOptions)}
+            />
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
+              <TextField
+                id="additionalTaxDate"
+                label="Tax Date / Period"
+                placeholder="e.g., June 15"
+                size="small"
+                fullWidth
+                error={!!errors.additionalTaxDate?.message}
+                helperText={errors.additionalTaxDate?.message}
+                {...register("additionalTaxDate")}
+              />
+              <TextField
+                id="additionalTaxReason"
+                label="Reason"
+                placeholder="e.g., Adjustment"
+                size="small"
+                fullWidth
+                error={!!errors.additionalTaxReason?.message}
+                helperText={errors.additionalTaxReason?.message}
+                {...register("additionalTaxReason")}
+              />
+            </Box>
+            <Typography
+              variant="caption"
+              sx={{
+                pt: 0.5,
+                display: "block",
+                color: "text.secondary",
+                fontSize: "0.7rem",
+                lineHeight: 1.3,
+              }}
+            >
+              * Added directly to the calculated 5% withholding tax deduction.
+            </Typography>
+          </Box>
+        )}
       </Stack>
     </Box>
   )

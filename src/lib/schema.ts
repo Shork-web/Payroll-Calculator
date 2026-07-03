@@ -58,7 +58,7 @@ export const payrollSchema = z
     lateDates: z.string().optional().default(""),
     undertimeDates: z.string().optional().default(""),
     lateIncidents: z.array(lateIncidentSchema).default([]),
-    computationType: z.enum(["semi-monthly", "daily", "monthly"]).default("semi-monthly"),
+    computationType: z.enum(["semi-monthly", "semi-monthly-no-tax", "daily", "monthly"]).default("semi-monthly"),
     additionalTax: coerceFormNumber().pipe(z.number().min(0)),
     additionalTaxDate: z.string().optional().default(""),
     additionalTaxReason: z.string().optional().default(""),
@@ -82,7 +82,9 @@ export const payrollSchema = z
           ? "daily earned"
           : data.computationType === "monthly"
             ? "monthly earned"
-            : "semi-monthly earned"
+            : data.computationType === "semi-monthly-no-tax"
+              ? "semi-monthly earned (no tax)"
+              : "semi-monthly earned"
       ctx.addIssue({
         code: "custom",
         message: `Overpayment cannot exceed ${label} plus premium (${formatPeso(maxOverpayment)})`,
