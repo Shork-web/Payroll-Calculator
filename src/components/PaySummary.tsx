@@ -26,7 +26,7 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
   const earnedSubtitle = result
     ? result.computationType === "daily"
       ? `Daily rate (₱${formatPeso(result.dailyRate)}) × ${result.periodWorkingDays} weekdays`
-      : result.computationType === "monthly"
+      : result.computationType === "monthly" || result.computationType === "monthly-no-tax"
         ? "Monthly rate (fixed base)"
         : "Monthly rate ÷ 2 (fixed base)"
     : undefined

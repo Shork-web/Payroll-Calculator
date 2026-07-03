@@ -77,7 +77,7 @@ export function DeductionsTaxSection() {
         </Box>
 
         {/* Sub-card 2: Additional Tax Withholding - Only show for computation types with tax */}
-        {computationTypeValue !== "semi-monthly-no-tax" && (
+        {computationTypeValue !== "semi-monthly-no-tax" && computationTypeValue !== "monthly-no-tax" && (
           <Box
             sx={{
               p: 2,

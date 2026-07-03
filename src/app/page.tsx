@@ -8,7 +8,8 @@ import { PaySummary } from "@/components/PaySummary"
 import { PayrollSheet } from "@/components/PayrollSheet"
 import { ThemeToggle } from "@/components/ThemeToggle"
 import type { EmployeeInfo, PayrollInputs, PayrollResult, PayrollEntry, Signatory } from "@/types/payroll"
-import { exportConsolidatedPayrollPdf, exportBulkPayslipsPdf } from "@/lib/exportPdf"
+import { exportConsolidatedPayrollPdf, exportBulkPayslipsPdf, exportBulkComputationsPdf } from "@/lib/exportPdf"
+import { exportPayrollCsv } from "@/lib/exportCsv"
 import type { PayrollFormInput } from "@/lib/schema"
 import logo from "./COS-LOGO.png"
 
@@ -84,6 +85,11 @@ export default function Home() {
         overpayment: target.inputs.overpayment,
         signatoryName: target.employee.signatoryName || "",
         signatoryTitle: target.employee.signatoryTitle || "",
+        payslipSignatoryName: target.employee.payslipSignatoryName || "",
+        payslipSignatoryTitle: target.employee.payslipSignatoryTitle || "",
+        payslipSignatories: target.employee.payslipSignatories || [
+          { label: "Certified Correct:", name: "", title: "" }
+        ],
         lateDates: target.inputs.lateDates || "",
         undertimeDates: target.inputs.undertimeDates || "",
         lateIncidents: target.inputs.lateIncidents || [],
@@ -112,15 +118,28 @@ export default function Home() {
     handleReset()
   }, [handleReset])
 
-  const handleExportConsolidated = useCallback(() => {
-    if (entries.length === 0) return
-    exportConsolidatedPayrollPdf(entries, signatories)
-  }, [entries, signatories])
+  const handleExportConsolidated = useCallback(
+    (selectedEntries: PayrollEntry[]) => {
+      if (selectedEntries.length === 0) return
+      exportConsolidatedPayrollPdf(selectedEntries, signatories)
+    },
+    [signatories],
+  )
 
-  const handleExportPayslips = useCallback(() => {
-    if (entries.length === 0) return
-    exportBulkPayslipsPdf(entries)
-  }, [entries])
+  const handleExportPayslips = useCallback((selectedEntries: PayrollEntry[]) => {
+    if (selectedEntries.length === 0) return
+    exportBulkPayslipsPdf(selectedEntries)
+  }, [])
+
+  const handleExportComputations = useCallback((selectedEntries: PayrollEntry[]) => {
+    if (selectedEntries.length === 0) return
+    exportBulkComputationsPdf(selectedEntries)
+  }, [])
+
+  const handleExportCsv = useCallback((selectedEntries: PayrollEntry[]) => {
+    if (selectedEntries.length === 0) return
+    exportPayrollCsv(selectedEntries)
+  }, [])
 
   const canExport = employee !== null && result !== null && inputs !== null
   const mode = theme.palette.mode
@@ -263,6 +282,8 @@ export default function Home() {
             onDelete={handleDeleteEntry}
             onExportConsolidated={handleExportConsolidated}
             onExportPayslips={handleExportPayslips}
+            onExportComputations={handleExportComputations}
+            onExportCsv={handleExportCsv}
             signatories={signatories}
             onSignatoriesChange={setSignatories}
           />

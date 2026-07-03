@@ -55,10 +55,19 @@ export const payrollSchema = z
     overpayment: overpaymentField,
     signatoryName: z.string().default(""),
     signatoryTitle: z.string().default(""),
+    payslipSignatoryName: z.string().default(""),
+    payslipSignatoryTitle: z.string().default(""),
+    payslipSignatories: z.array(z.object({
+      label: z.string().default(""),
+      name: z.string().default(""),
+      title: z.string().default(""),
+    })).default([
+      { label: "Certified Correct:", name: "", title: "" }
+    ]),
     lateDates: z.string().optional().default(""),
     undertimeDates: z.string().optional().default(""),
     lateIncidents: z.array(lateIncidentSchema).default([]),
-    computationType: z.enum(["semi-monthly", "semi-monthly-no-tax", "daily", "monthly"]).default("semi-monthly"),
+    computationType: z.enum(["semi-monthly", "semi-monthly-no-tax", "daily", "monthly", "monthly-no-tax"]).default("semi-monthly"),
     additionalTax: coerceFormNumber().pipe(z.number().min(0)),
     additionalTaxDate: z.string().optional().default(""),
     additionalTaxReason: z.string().optional().default(""),
@@ -84,7 +93,9 @@ export const payrollSchema = z
             ? "monthly earned"
             : data.computationType === "semi-monthly-no-tax"
               ? "semi-monthly earned (no tax)"
-              : "semi-monthly earned"
+              : data.computationType === "monthly-no-tax"
+                ? "monthly earned (no tax)"
+                : "semi-monthly earned"
       ctx.addIssue({
         code: "custom",
         message: `Overpayment cannot exceed ${label} plus premium (${formatPeso(maxOverpayment)})`,

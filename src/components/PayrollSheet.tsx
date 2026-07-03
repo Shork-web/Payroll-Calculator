@@ -1,4 +1,5 @@
-import { Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Button, Stack, useTheme, TextField } from "@mui/material"
+import { useState, useEffect } from "react"
+import { Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Button, Stack, useTheme, TextField, Checkbox } from "@mui/material"
 import {
   Delete as DeleteIcon,
   Edit as EditIcon,
@@ -9,6 +10,7 @@ import {
   PictureAsPdf as PdfIcon,
   Layers as LayersIcon,
   Add as AddIcon,
+  Description as DescriptionIcon,
 } from "@mui/icons-material"
 import type { PayrollEntry, Signatory } from "@/types/payroll"
 import { formatPeso } from "@/lib/format"
@@ -17,8 +19,10 @@ export interface PayrollSheetProps {
   entries: PayrollEntry[]
   onEdit: (id: string) => void
   onDelete: (id: string) => void
-  onExportConsolidated: () => void
-  onExportPayslips: () => void
+  onExportConsolidated: (selectedEntries: PayrollEntry[]) => void
+  onExportPayslips: (selectedEntries: PayrollEntry[]) => void
+  onExportComputations: (selectedEntries: PayrollEntry[]) => void
+  onExportCsv: (selectedEntries: PayrollEntry[]) => void
   signatories: Signatory[]
   onSignatoriesChange: (val: Signatory[]) => void
 }
@@ -29,11 +33,35 @@ export function PayrollSheet({
   onDelete,
   onExportConsolidated,
   onExportPayslips,
+  onExportComputations,
+  onExportCsv,
   signatories,
   onSignatoriesChange,
 }: PayrollSheetProps) {
   const theme = useTheme()
   const mode = theme.palette.mode
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+
+  // Automatically sync selection state when entries list changes (e.g. addition, deletion)
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const entryIds = entries.map((e) => e.id)
+      const currentEntryIdsSet = new Set(entryIds)
+      
+      // Filter out any IDs that no longer exist in the entries
+      const stillValidSelected = prev.filter((id) => currentEntryIdsSet.has(id))
+      
+      // Auto-select any new entries that aren't in the selection state
+      const prevSet = new Set(prev)
+      const newIdsToSelect = entryIds.filter((id) => !prevSet.has(id))
+      
+      if (newIdsToSelect.length > 0 || stillValidSelected.length !== prev.length) {
+        return [...stillValidSelected, ...newIdsToSelect]
+      }
+      return prev
+    })
+  }, [entries])
 
   // Aggregate Metrics
   const totalEmployees = entries.length
@@ -72,7 +100,11 @@ export function PayrollSheet({
               variant="outlined"
               color="success"
               startIcon={<LayersIcon />}
-              onClick={onExportConsolidated}
+              disabled={selectedIds.length === 0}
+              onClick={() => {
+                const selectedEntries = entries.filter((e) => selectedIds.includes(e.id))
+                onExportConsolidated(selectedEntries)
+              }}
               sx={{
                 fontWeight: 700,
                 borderRadius: 2.5,
@@ -84,14 +116,41 @@ export function PayrollSheet({
                 }
               }}
             >
-              Export Sheet
+              Export Register ({selectedIds.length})
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              color="success"
+              startIcon={<DescriptionIcon />}
+              disabled={selectedIds.length === 0}
+              onClick={() => {
+                const selectedEntries = entries.filter((e) => selectedIds.includes(e.id))
+                onExportCsv(selectedEntries)
+              }}
+              sx={{
+                fontWeight: 700,
+                borderRadius: 2.5,
+                borderColor: mode === "dark" ? "#34d399" : "#059669",
+                color: mode === "dark" ? "#6ee7b7" : "#059669",
+                "&:hover": {
+                  borderColor: mode === "dark" ? "#6ee7b7" : "#047857",
+                  bgcolor: mode === "dark" ? "rgba(52, 211, 153, 0.05)" : "rgba(5, 150, 105, 0.04)",
+                }
+              }}
+            >
+              Export CSV ({selectedIds.length})
             </Button>
             <Button
               size="small"
               variant="contained"
               color="success"
               startIcon={<PdfIcon />}
-              onClick={onExportPayslips}
+              disabled={selectedIds.length === 0}
+              onClick={() => {
+                const selectedEntries = entries.filter((e) => selectedIds.includes(e.id))
+                onExportPayslips(selectedEntries)
+              }}
               sx={{
                 fontWeight: 700,
                 borderRadius: 2.5,
@@ -101,7 +160,28 @@ export function PayrollSheet({
                 }
               }}
             >
-              Export Payslips
+              Export Bulk Payslips ({selectedIds.length})
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              color="success"
+              startIcon={<PdfIcon />}
+              disabled={selectedIds.length === 0}
+              onClick={() => {
+                const selectedEntries = entries.filter((e) => selectedIds.includes(e.id))
+                onExportComputations(selectedEntries)
+              }}
+              sx={{
+                fontWeight: 700,
+                borderRadius: 2.5,
+                bgcolor: mode === "dark" ? "#047857" : "#059669",
+                "&:hover": {
+                  bgcolor: mode === "dark" ? "#065f46" : "#047857",
+                }
+              }}
+            >
+              Export Bulk Computations ({selectedIds.length})
             </Button>
           </Stack>
         )}
@@ -289,6 +369,7 @@ export function PayrollSheet({
             )}
           </Paper>
 
+
           {/* Directory Data Table */}
           <TableContainer
             component={Paper}
@@ -302,6 +383,20 @@ export function PayrollSheet({
             <Table size="small">
               <TableHead sx={{ bgcolor: mode === "dark" ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)" }}>
                 <TableRow>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      color="success"
+                      indeterminate={selectedIds.length > 0 && selectedIds.length < entries.length}
+                      checked={entries.length > 0 && selectedIds.length === entries.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedIds(entries.map((ent) => ent.id))
+                        } else {
+                          setSelectedIds([])
+                        }
+                      }}
+                    />
+                  </TableCell>
                   <TableCell sx={{ fontWeight: 700, py: 1.5 }}>Employee</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Mode</TableCell>
                   <TableCell sx={{ fontWeight: 700 }} align="right">Gross Pay</TableCell>
@@ -317,17 +412,47 @@ export function PayrollSheet({
                     ? "Daily"
                     : entry.result.computationType === "monthly"
                       ? "Monthly"
-                      : "Semi-Mo"
+                      : entry.result.computationType === "monthly-no-tax"
+                        ? "Monthly (No Tax)"
+                        : entry.result.computationType === "semi-monthly-no-tax"
+                          ? "Semi-Mo (No Tax)"
+                          : "Semi-Mo"
+                  const isSelected = selectedIds.includes(entry.id)
 
                   return (
                     <TableRow
                       key={entry.id}
+                      selected={isSelected}
                       sx={{
+                        bgcolor: isSelected
+                          ? mode === "dark"
+                            ? "rgba(52, 211, 153, 0.08)"
+                            : "rgba(5, 150, 105, 0.04)"
+                          : "transparent",
                         "&:hover": {
-                          bgcolor: mode === "dark" ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)"
+                          bgcolor: isSelected
+                            ? mode === "dark"
+                              ? "rgba(52, 211, 153, 0.12)"
+                              : "rgba(5, 150, 105, 0.08)"
+                            : mode === "dark"
+                              ? "rgba(255,255,255,0.02)"
+                              : "rgba(0,0,0,0.01)"
                         }
                       }}
                     >
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          color="success"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedIds((prev) => [...prev, entry.id])
+                            } else {
+                              setSelectedIds((prev) => prev.filter((id) => id !== entry.id))
+                            }
+                          }}
+                        />
+                      </TableCell>
                       <TableCell sx={{ py: 1.5 }}>
                         <Typography variant="body2" sx={{ fontWeight: 700 }}>
                           {entry.employee.name}

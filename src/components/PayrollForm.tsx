@@ -28,6 +28,7 @@ import type { EmployeeInfo, PayrollInputs, PayrollResult } from "@/types/payroll
 
 import { EmployeeProfileSection } from "./payroll-form/EmployeeProfileSection"
 import { AuthorizedSignatorySection } from "./payroll-form/AuthorizedSignatorySection"
+import { PayslipSignatorySection } from "./payroll-form/PayslipSignatorySection"
 import { SalaryBaseRatesSection } from "./payroll-form/SalaryBaseRatesSection"
 import { AttendanceAdjustmentsSection } from "./payroll-form/AttendanceAdjustmentsSection"
 import { DeductionsTaxSection } from "./payroll-form/DeductionsTaxSection"
@@ -47,6 +48,11 @@ function createFormDefaultValues(): PayrollFormInput {
     overpayment: 0,
     signatoryName: "",
     signatoryTitle: "",
+    payslipSignatoryName: "",
+    payslipSignatoryTitle: "",
+    payslipSignatories: [
+      { label: "Certified Correct:", name: "", title: "" }
+    ],
     lateDates: "",
     undertimeDates: "",
     lateIncidents: [],
@@ -71,6 +77,9 @@ const WATCHED_FIELDS = [
   "overpayment",
   "signatoryName",
   "signatoryTitle",
+  "payslipSignatoryName",
+  "payslipSignatoryTitle",
+  "payslipSignatories",
   "lateDates",
   "computationType",
   "additionalTax",
@@ -178,7 +187,7 @@ export function PayrollForm({ onCompute, onReset, editValues = null }: PayrollFo
         return
       }
 
-      const { name, position, periodStart, periodEnd, signatoryName, signatoryTitle, computationType } = values
+      const { name, position, periodStart, periodEnd, signatoryName, signatoryTitle, payslipSignatoryName, payslipSignatoryTitle, payslipSignatories, computationType } = values
       if (!name.trim() || !position.trim() || !periodStart || !periodEnd) {
         return
       }
@@ -195,9 +204,26 @@ export function PayrollForm({ onCompute, onReset, editValues = null }: PayrollFo
       }
       const period = formatPayPeriod(periodStart, periodEnd)
 
+      const formattedPayslipSignatories = (payslipSignatories || []).map(s => ({
+        label: s.label || "",
+        name: s.name || "",
+        title: s.title || ""
+      }))
+
       onCompute(
         computePayroll(payrollInputs),
-        { name, position, period, periodStart, periodEnd, signatoryName, signatoryTitle },
+        {
+          name,
+          position,
+          period,
+          periodStart,
+          periodEnd,
+          signatoryName,
+          signatoryTitle,
+          payslipSignatoryName,
+          payslipSignatoryTitle,
+          payslipSignatories: formattedPayslipSignatories
+        },
         payrollInputs,
       )
     }
@@ -207,7 +233,8 @@ export function PayrollForm({ onCompute, onReset, editValues = null }: PayrollFo
       if (
         name === undefined ||
         (WATCHED_FIELDS as readonly string[]).includes(name) ||
-        name.startsWith("lateIncidents")
+        name.startsWith("lateIncidents") ||
+        name.startsWith("payslipSignatories")
       ) {
         runCompute()
       }
@@ -248,6 +275,7 @@ export function PayrollForm({ onCompute, onReset, editValues = null }: PayrollFo
         <Stack spacing={2.5}>
           <EmployeeProfileSection />
           <AuthorizedSignatorySection />
+          <PayslipSignatorySection />
           <SalaryBaseRatesSection />
           <AttendanceAdjustmentsSection />
           <DeductionsTaxSection />

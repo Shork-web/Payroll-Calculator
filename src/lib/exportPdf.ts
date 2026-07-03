@@ -13,12 +13,12 @@ function n(v: number): string {
   return v.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export async function exportPayrollPdf(
+export function renderPayrollComputationPage(
+  doc: Doc,
   employee: EmployeeInfo,
   result: PayrollResult,
   inputs: PayrollInputs,
-): Promise<void> {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
+): void {
   const period = formatPayPeriod(inputs.periodStart, inputs.periodEnd)
 
   const {
@@ -75,7 +75,11 @@ export async function exportPayrollPdf(
     ? "Daily"
     : result.computationType === "monthly"
       ? "Monthly"
-      : "Semi-Monthly"
+      : result.computationType === "monthly-no-tax"
+        ? "Monthly (No Tax)"
+        : result.computationType === "semi-monthly-no-tax"
+          ? "Semi-Monthly (No Tax)"
+          : "Semi-Monthly"
   doc.text(`For the Period: ${period} (${modeLabel})`, pageW / 2, y, { align: "center" })
 
   y += 4.5
@@ -205,7 +209,7 @@ export async function exportPayrollPdf(
   rowIndex = 0
   if (result.computationType === "daily") {
     drawRow(`Base Pay (${n(dailyRate)} × ${result.periodWorkingDays} days)`, n(earned))
-  } else if (result.computationType === "monthly") {
+  } else if (result.computationType === "monthly" || result.computationType === "monthly-no-tax") {
     drawRow(`Base Pay (${n(monthlyRate)})`, n(earned))
   } else {
     drawRow(`Base Pay (${n(monthlyRate)} ÷ 2)`, n(earned))
@@ -401,8 +405,16 @@ export async function exportPayrollPdf(
   } else {
     doc.text("This is an official payroll computation record.", pageMargin, y)
   }
+}
 
-  // Save the PDF
+export async function exportPayrollPdf(
+  employee: EmployeeInfo,
+  result: PayrollResult,
+  inputs: PayrollInputs,
+): Promise<void> {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
+  renderPayrollComputationPage(doc, employee, result, inputs)
+
   const safeName = employee.name
     .replace(/[^a-z0-9]/gi, "_")
     .replace(/_+/g, "_")
@@ -411,6 +423,17 @@ export async function exportPayrollPdf(
   const dateStart = inputs.periodStart.split("T")[0]
   const dateEnd = inputs.periodEnd.split("T")[0]
   doc.save(`Payslip_${safeName}_${dateStart}_${dateEnd}.pdf`)
+}
+
+export async function exportBulkComputationsPdf(entries: PayrollEntry[]): Promise<void> {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
+  entries.forEach((entry, idx) => {
+    if (idx > 0) {
+      doc.addPage()
+    }
+    renderPayrollComputationPage(doc, entry.employee, entry.result, entry.inputs)
+  })
+  doc.save("Bulk_Computations.pdf")
 }
 
 export async function exportPayslipPdf(
@@ -431,7 +454,7 @@ export async function exportPayslipPdf(
 
   // Draw payslip container box
   const boxW = 180
-  const boxH = 102.5
+  const boxH = 126.5
   const boxX = (210 - boxW) / 2
   const boxY = 25
 
@@ -476,7 +499,11 @@ export async function exportPayslipPdf(
     ? "Daily"
     : result.computationType === "monthly"
       ? "Monthly"
-      : "Semi-Monthly"
+      : result.computationType === "monthly-no-tax"
+        ? "Monthly (No Tax)"
+        : result.computationType === "semi-monthly-no-tax"
+          ? "Semi-Monthly (No Tax)"
+          : "Semi-Monthly"
   doc.text(`Period: ${period} (${modeLabel2})`, boxX + 8, boxY + 41)
 
   // Table Top Y
@@ -618,6 +645,59 @@ export async function exportPayslipPdf(
   doc.setFont("helvetica", "bold")
   doc.text("Net Pay", boxX + 92, rowY)
   doc.text(n(netPay), boxX + 178, rowY, { align: "right" })
+
+  // Render Signature Block at the bottom of the box
+  const signatureY = tableY + tableH + 3
+  
+  // Render Signatures
+  let validSigs = (employee.payslipSignatories ?? []).filter(s => s.name.trim())
+  if (validSigs.length === 0 && (employee.payslipSignatoryName || "").trim()) {
+    validSigs = [{
+      label: "Certified Correct:",
+      name: employee.payslipSignatoryName || "",
+      title: employee.payslipSignatoryTitle || ""
+    }]
+  }
+
+  const totalBlocks = 1 + validSigs.length
+  const usableW = 168
+  const colW = usableW / totalBlocks
+  const lineW = Math.min(74, colW - 10)
+
+  // Left: Conforme / Received By
+  const conformeX = boxX + 6
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8)
+  doc.setTextColor(0, 0, 0)
+  doc.text("Conforme / Received by:", conformeX, signatureY)
+  doc.setDrawColor(200, 200, 200)
+  doc.setLineWidth(0.2)
+  doc.line(conformeX, signatureY + 8, conformeX + lineW, signatureY + 8)
+  
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(8)
+  doc.text(employee.name.toUpperCase(), conformeX, signatureY + 11.5)
+  
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(7.5)
+  doc.text("Signature over Printed Name", conformeX, signatureY + 14.5)
+
+  // Right: Other dynamic signatories
+  validSigs.forEach((sig, index) => {
+    const sigX = boxX + 6 + (index + 1) * colW
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(8)
+    doc.text(sig.label || "Certified Correct:", sigX, signatureY)
+    doc.line(sigX, signatureY + 8, sigX + lineW, signatureY + 8)
+    
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(8)
+    doc.text((sig.name || "").toUpperCase(), sigX, signatureY + 11.5)
+    
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(7.5)
+    doc.text(sig.title || "Authorized Officer", sigX, signatureY + 14.5)
+  })
 
   // Save the PDF
   const safeName = employee.name
@@ -799,8 +879,15 @@ export async function exportConsolidatedPayrollPdf(
 
     // Mode
     doc.setTextColor(100, 100, 100)
-    const modeStr = result.computationType === "daily" ? "Daily"
-      : result.computationType === "monthly" ? "Monthly" : "Semi-Monthly"
+    const modeStr = result.computationType === "daily"
+      ? "Daily"
+      : result.computationType === "monthly"
+        ? "Monthly"
+        : result.computationType === "monthly-no-tax"
+          ? "Monthly (No Tax)"
+          : result.computationType === "semi-monthly-no-tax"
+            ? "Semi-Mo (No Tax)"
+            : "Semi-Monthly"
     doc.text(modeStr, cols.modeL, textY)
 
     // Base Pay
@@ -958,7 +1045,7 @@ export async function exportBulkPayslipsPdf(entries: PayrollEntry[]): Promise<vo
     const { monthlyRate, lateMinutes, undertimeMinutes, absentDays } = inputs
 
     const boxW = 180
-    const boxH = 102.5
+    const boxH = 126.5
     const boxX = (210 - boxW) / 2
     const boxY = 25
 
@@ -995,7 +1082,11 @@ export async function exportBulkPayslipsPdf(entries: PayrollEntry[]): Promise<vo
       ? "Daily"
       : result.computationType === "monthly"
         ? "Monthly"
-        : "Semi-Monthly"
+        : result.computationType === "monthly-no-tax"
+          ? "Monthly (No Tax)"
+          : result.computationType === "semi-monthly-no-tax"
+            ? "Semi-Monthly (No Tax)"
+            : "Semi-Monthly"
     doc.text(`Period: ${period} (${modeLabel2})`, boxX + 8, boxY + 41)
 
     const tableY = boxY + 45
@@ -1081,6 +1172,59 @@ export async function exportBulkPayslipsPdf(entries: PayrollEntry[]): Promise<vo
     doc.setFont("helvetica", "bold")
     doc.text("Net Pay", boxX + 92, rowY)
     doc.text(n(netPay), boxX + 178, rowY, { align: "right" })
+
+    // Render Signature Block at the bottom of the box
+    const signatureY = tableY + tableH + 3
+    
+    // Render Signatures
+    let validSigs = (employee.payslipSignatories ?? []).filter(s => s.name.trim())
+    if (validSigs.length === 0 && (employee.payslipSignatoryName || "").trim()) {
+      validSigs = [{
+        label: "Certified Correct:",
+        name: employee.payslipSignatoryName || "",
+        title: employee.payslipSignatoryTitle || ""
+      }]
+    }
+
+    const totalBlocks = 1 + validSigs.length
+    const usableW = 168
+    const colW = usableW / totalBlocks
+    const lineW = Math.min(74, colW - 10)
+
+    // Left: Conforme / Received By
+    const conformeX = boxX + 6
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(8)
+    doc.setTextColor(0, 0, 0)
+    doc.text("Conforme / Received by:", conformeX, signatureY)
+    doc.setDrawColor(200, 200, 200)
+    doc.setLineWidth(0.2)
+    doc.line(conformeX, signatureY + 8, conformeX + lineW, signatureY + 8)
+    
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(8)
+    doc.text(employee.name.toUpperCase(), conformeX, signatureY + 11.5)
+    
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(7.5)
+    doc.text("Signature over Printed Name", conformeX, signatureY + 14.5)
+
+    // Right: Other dynamic signatories
+    validSigs.forEach((sig, index) => {
+      const sigX = boxX + 6 + (index + 1) * colW
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(8)
+      doc.text(sig.label || "Certified Correct:", sigX, signatureY)
+      doc.line(sigX, signatureY + 8, sigX + lineW, signatureY + 8)
+      
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(8)
+      doc.text((sig.name || "").toUpperCase(), sigX, signatureY + 11.5)
+      
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(7.5)
+      doc.text(sig.title || "Authorized Officer", sigX, signatureY + 14.5)
+    })
   })
 
   doc.save("Bulk_Payslips.pdf")

@@ -6,6 +6,9 @@ export interface EmployeeInfo {
   periodEnd: string
   signatoryName?: string | undefined
   signatoryTitle?: string | undefined
+  payslipSignatoryName?: string | undefined
+  payslipSignatoryTitle?: string | undefined
+  payslipSignatories?: Signatory[] | undefined
 }
 
 export interface PayrollInputs {
@@ -22,7 +25,7 @@ export interface PayrollInputs {
   undertimeDates?: string | undefined
   absentDates?: string | undefined
   lateIncidents?: Array<{ date: string; minutes: number; type: "late" | "undertime" | "absent"; days?: number }> | undefined
-  computationType: "semi-monthly" | "daily" | "monthly" | "semi-monthly-no-tax"
+  computationType: "semi-monthly" | "daily" | "monthly" | "semi-monthly-no-tax" | "monthly-no-tax"
   additionalTax: number
   additionalTaxDate?: string | undefined
   additionalTaxReason?: string | undefined
@@ -51,7 +54,7 @@ export interface PayrollResult {
   tax: number
   totalDeductions: number
   netPay: number
-  computationType: "semi-monthly" | "daily" | "monthly" | "semi-monthly-no-tax"
+  computationType: "semi-monthly" | "daily" | "monthly" | "semi-monthly-no-tax" | "monthly-no-tax"
   exemptionLimit: number
 }
 

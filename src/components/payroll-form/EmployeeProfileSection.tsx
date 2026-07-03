@@ -82,6 +82,7 @@ export function EmployeeProfileSection() {
               <MenuItem value="semi-monthly-no-tax">Semi-Monthly No Tax (Fixed Base, No Tax Deductions)</MenuItem>
               <MenuItem value="daily">Daily Computation (Daily Rate × Period Days)</MenuItem>
               <MenuItem value="monthly">Monthly Computation (Full Month)</MenuItem>
+              <MenuItem value="monthly-no-tax">Monthly No Tax (Full Month, No Tax Deductions)</MenuItem>
             </TextField>
           )}
         />
