@@ -185,22 +185,30 @@ export function ThemeProvider({
               textTransform: "none",
               transition: "all 0.2s ease-in-out",
             },
-            containedPrimary: {
-              background: "linear-gradient(135deg, #059669 0%, #10b981 100%)",
-              boxShadow: "0 4px 14px 0 rgba(16, 185, 129, 0.39)",
-              "&:hover": {
-                transform: "translateY(-1px)",
-                boxShadow: "0 6px 20px rgba(16, 185, 129, 0.23)",
-              },
-            },
-            outlinedPrimary: {
-              borderWidth: "1.5px",
-              "&:hover": {
-                borderWidth: "1.5px",
-                backgroundColor: "rgba(16, 185, 129, 0.04)",
-              },
-            },
           },
+          variants: [
+            {
+              props: { variant: "contained", color: "primary" },
+              style: {
+                background: "linear-gradient(135deg, #059669 0%, #10b981 100%)",
+                boxShadow: "0 4px 14px 0 rgba(16, 185, 129, 0.39)",
+                "&:hover": {
+                  transform: "translateY(-1px)",
+                  boxShadow: "0 6px 20px rgba(16, 185, 129, 0.23)",
+                },
+              },
+            },
+            {
+              props: { variant: "outlined", color: "primary" },
+              style: {
+                borderWidth: "1.5px",
+                "&:hover": {
+                  borderWidth: "1.5px",
+                  backgroundColor: "rgba(16, 185, 129, 0.04)",
+                },
+              },
+            },
+          ],
         },
         MuiTextField: {
           styleOverrides: {
