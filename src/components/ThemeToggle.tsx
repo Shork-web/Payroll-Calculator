@@ -16,6 +16,7 @@ export function ThemeToggle() {
         border: 1,
         borderColor: "divider",
         bgcolor: "background.paper",
+        borderRadius: 1.5,
         "&:hover": {
           bgcolor: muiTheme.palette.mode === "dark" ? "grey.900" : "grey.50",
         },

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useState } from "react"
-import { Box, Container, Typography, Stack, Paper, Chip, Avatar, useTheme, Button } from "@mui/material"
+import { Box, Container, Typography, Stack, Chip, Avatar, useTheme, Button } from "@mui/material"
 import { ExportButton } from "@/components/ExportButton"
 import { PayrollForm } from "@/components/PayrollForm"
 import { PaySummary } from "@/components/PaySummary"
@@ -145,30 +145,26 @@ export default function Home() {
   const mode = theme.palette.mode
 
   const actionStack = canExport ? (
-    <Stack direction="row" spacing={1.5} sx={{ mt: { xs: 2, sm: 0 }, flexWrap: "wrap", gap: 1, alignItems: "center" }}>
+    <Stack direction="row" spacing={1.5} sx={{ mt: { xs: 2, sm: 0 }, flexWrap: "wrap", gap: 1.5, alignItems: "center" }}>
       {editingEntryId && (
         <Button
           size="medium"
           variant="outlined"
           color="error"
           onClick={handleCancelEdit}
-          sx={{ fontWeight: 700, borderRadius: 2.5 }}
+          sx={{ fontWeight: 700, borderRadius: 1.5 }}
         >
           Cancel
         </Button>
       )}
       <Button
-        size="medium"
+        size="small"
         variant="contained"
-        color="success"
+        color="primary"
         onClick={handleAddEntry}
         sx={{
           fontWeight: 700,
-          borderRadius: 2.5,
-          bgcolor: mode === "dark" ? "#047857" : "#059669",
-          "&:hover": {
-            bgcolor: mode === "dark" ? "#065f46" : "#047857",
-          }
+          borderRadius: 1.5,
         }}
       >
         {editingEntryId ? "Update Entry" : "Add to Sheet"}
@@ -178,101 +174,79 @@ export default function Home() {
   ) : null
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default", pb: 6 }}>
-      {/* Premium Dark Green Banner */}
+    <Box sx={{ minHeight: "100vh", pb: 4 }}>
+      {/* Premium Slim Navigation Header */}
       <Box
+        component="header"
         sx={{
-          position: "absolute",
-          left: 0,
-          right: 0,
+          position: "sticky",
           top: 0,
-          height: 256,
-          background: mode === "dark"
-            ? "linear-gradient(135deg, #065f46 0%, #064e3b 50%, #022c22 100%)"
-            : "linear-gradient(135deg, #059669 0%, #047857 50%, #065f46 100%)",
-          zIndex: 0,
+          zIndex: 100,
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          backgroundColor: mode === "dark" ? "rgba(15, 23, 42, 0.7)" : "rgba(255, 255, 255, 0.8)",
+          borderBottom: 1,
+          borderColor: mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.5)",
+          boxShadow: mode === "dark" ? "0 4px 20px rgba(0,0,0,0.2)" : "0 4px 20px rgba(0,0,0,0.03)",
         }}
-      />
-
-      <Container maxWidth="xl" sx={{ position: "relative", zIndex: 1, py: 4 }}>
-        {/* Header */}
-        <Paper
-          elevation={0}
-          sx={{
-            mb: 4,
-            p: 3,
-            display: "flex",
-            flexDirection: { xs: "column", md: "row" },
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 2,
-            bgcolor: "transparent",
-            borderBottom: 1,
-            borderColor: "rgba(255, 255, 255, 0.15)",
-          }}
-        >
-          <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: "center", gap: 3 }}>
-            <Avatar
-              src={logo.src}
-              alt="COS Logo"
-              sx={{ width: 96, height: 96 }}
-            />
-            <Box sx={{ textAlign: { xs: "center", md: "left" } }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, justifyContent: { xs: "center", md: "flex-start" } }}>
-                <Box
-                  sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    bgcolor: "#34d399",
-                    animation: "pulse 2s infinite",
-                    "@keyframes pulse": {
-                      "0%, 100%": { opacity: 1 },
-                      "50%": { opacity: 0.5 },
-                    },
-                  }}
-                />
-                <Chip
-                  label="Philippine Fiber Industry Development Authority"
-                  size="small"
-                  sx={{
-                    bgcolor: "rgba(52, 211, 153, 0.15)",
-                    color: "#6ee7b7",
-                    fontWeight: 600,
-                    fontSize: "0.75rem",
-                    letterSpacing: 1,
-                  }}
-                />
+      >
+        <Container maxWidth="xl">
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              py: 1,
+              gap: 2,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <Avatar
+                src={logo.src}
+                alt="PHILFIDA Logo"
+                sx={{ width: 32, height: 32, borderRadius: 1 }}
+              />
+              <Box>
+                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "text.primary", letterSpacing: -0.3 }}>
+                    PHILFIDA Payroll
+                  </Typography>
+                  <Chip
+                    label="COS Calculator"
+                    size="small"
+                    sx={{
+                      height: 18,
+                      fontSize: "0.65rem",
+                      fontWeight: 700,
+                      bgcolor: mode === "dark" ? "rgba(52, 211, 153, 0.15)" : "rgba(5, 150, 105, 0.1)",
+                      color: mode === "dark" ? "#6ee7b7" : "#047857",
+                      border: 1,
+                      borderColor: mode === "dark" ? "rgba(52, 211, 153, 0.3)" : "rgba(5, 150, 105, 0.2)",
+                    }}
+                  />
+                </Stack>
+                <Typography variant="caption" sx={{ color: "text.secondary", display: { xs: "none", sm: "block" }, fontSize: "0.75rem" }}>
+                  Philippine Fiber Industry Development Authority • Contract of Service Engine
+                </Typography>
               </Box>
-              <Typography variant="h3" sx={{ mt: 1, fontWeight: 800, color: "white" }}>
-                COS Salary Calculator
-              </Typography>
-              <Typography variant="body2" sx={{ mt: 0.5, color: "rgba(167, 243, 208, 0.7)" }}>
-                Contract of Service — Semi-monthly computation payroll engine
-              </Typography>
             </Box>
+            <ThemeToggle />
           </Box>
-          <ThemeToggle />
-        </Paper>
+        </Container>
+      </Box>
+
+      <Container maxWidth="xl" sx={{ pt: 2 }}>
 
         {/* Core Layout Grid */}
-        <Box sx={{ display: "flex", flexDirection: { xs: "column", lg: "row" }, gap: 3, mb: 4 }}>
-          {/* Left Column: Form Panel */}
-          <Box sx={{ flex: { lg: "0 0 40%" }, position: { lg: "sticky" }, top: 32 }}>
-            <PayrollForm onCompute={handleCompute} onReset={handleReset} editValues={editValues} />
-          </Box>
-
-          {/* Right Column: Dynamic Output Panel */}
-          <Box sx={{ flex: { lg: 1 } }}>
-            <Stack spacing={3}>
-              <PaySummary
-                result={result}
-                inputs={inputs}
-                action={actionStack}
-              />
-            </Stack>
-          </Box>
-        </Box>
+        <Stack spacing={2} sx={{ mb: 2 }}>
+          <PayrollForm onCompute={handleCompute} onReset={handleReset} editValues={editValues} />
+          
+          <PaySummary
+            result={result}
+            inputs={inputs}
+            action={actionStack}
+          />
+        </Stack>
 
         {/* Saved Entries Directory Section */}
         <Box>

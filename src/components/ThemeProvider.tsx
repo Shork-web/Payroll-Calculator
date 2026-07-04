@@ -129,6 +129,7 @@ export function ThemeProvider({
       },
       typography: {
         fontFamily: [
+          "Inter",
           "-apple-system",
           "BlinkMacSystemFont",
           '"Segoe UI"',
@@ -164,20 +165,39 @@ export function ThemeProvider({
         MuiPaper: {
           styleOverrides: {
             root: {
-              borderRadius: 12,
+              borderRadius: 16,
+              backgroundImage: "none",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              backgroundColor: mode === "dark" ? "rgba(30, 41, 59, 0.6)" : "rgba(255, 255, 255, 0.7)",
+              boxShadow: mode === "dark" 
+                ? "0 8px 32px 0 rgba(0, 0, 0, 0.3)" 
+                : "0 8px 32px 0 rgba(31, 38, 135, 0.07)",
+              border: `1px solid ${mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.4)"}`,
             },
           },
         },
         MuiButton: {
           styleOverrides: {
             root: {
-              borderRadius: 8,
+              borderRadius: 10,
               fontWeight: 600,
+              textTransform: "none",
+              transition: "all 0.2s ease-in-out",
             },
-            contained: {
-              boxShadow: "0 2px 8px rgba(5, 150, 105, 0.2)",
+            containedPrimary: {
+              background: "linear-gradient(135deg, #059669 0%, #10b981 100%)",
+              boxShadow: "0 4px 14px 0 rgba(16, 185, 129, 0.39)",
               "&:hover": {
-                boxShadow: "0 4px 12px rgba(5, 150, 105, 0.3)",
+                transform: "translateY(-1px)",
+                boxShadow: "0 6px 20px rgba(16, 185, 129, 0.23)",
+              },
+            },
+            outlinedPrimary: {
+              borderWidth: "1.5px",
+              "&:hover": {
+                borderWidth: "1.5px",
+                backgroundColor: "rgba(16, 185, 129, 0.04)",
               },
             },
           },
@@ -186,7 +206,16 @@ export function ThemeProvider({
           styleOverrides: {
             root: {
               "& .MuiOutlinedInput-root": {
-                borderRadius: 8,
+                borderRadius: 10,
+                backgroundColor: mode === "dark" ? "rgba(15, 23, 42, 0.4)" : "rgba(248, 250, 252, 0.5)",
+                transition: "all 0.2s ease",
+                "&:hover": {
+                  backgroundColor: mode === "dark" ? "rgba(15, 23, 42, 0.6)" : "rgba(248, 250, 252, 0.8)",
+                },
+                "&.Mui-focused": {
+                  backgroundColor: mode === "dark" ? "rgba(15, 23, 42, 0.8)" : "#ffffff",
+                  boxShadow: `0 0 0 2px ${mode === "dark" ? "rgba(52, 211, 153, 0.2)" : "rgba(16, 185, 129, 0.1)"}`,
+                }
               },
             },
           },
@@ -194,14 +223,18 @@ export function ThemeProvider({
         MuiCard: {
           styleOverrides: {
             root: {
-              borderRadius: 12,
+              borderRadius: 16,
+              backgroundImage: "none",
+              backdropFilter: "blur(12px)",
+              backgroundColor: mode === "dark" ? "rgba(30, 41, 59, 0.6)" : "rgba(255, 255, 255, 0.7)",
             },
           },
         },
         MuiChip: {
           styleOverrides: {
             root: {
-              borderRadius: 6,
+              borderRadius: 8,
+              fontWeight: 600,
             },
           },
         },

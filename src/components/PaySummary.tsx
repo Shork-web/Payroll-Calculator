@@ -1,5 +1,4 @@
-import type { CSSProperties } from "react"
-import { Box, Typography, Paper, useTheme } from "@mui/material"
+import { Box, Typography, Paper, useTheme, Stack } from "@mui/material"
 
 import { formatPeso } from "@/lib/format"
 import { SEMI_MONTHLY_EXEMPTION } from "@/lib/payroll"
@@ -53,218 +52,331 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
     <Paper
       elevation={0}
       sx={{
-        p: { xs: 2.5, sm: 4 },
-        borderRadius: 4,
+        p: { xs: 1.5, sm: 2 },
+        borderRadius: 1.5,
         border: 1,
         borderColor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-        bgcolor: mode === "dark" ? "rgba(30,41,59,0.3)" : "background.paper",
-        backdropFilter: "blur(8px)",
-        boxShadow: mode === "dark" ? "0 10px 30px rgba(0,0,0,0.3)" : "0 10px 30px rgba(0,0,0,0.03)",
+        bgcolor: mode === "dark" ? "rgba(30,41,59,0.2)" : "background.paper",
+        boxShadow: mode === "dark" ? "none" : "0 1px 3px 0 rgba(0, 0, 0, 0.05)",
       }}
     >
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2 }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5, gap: 2 }}>
         <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: -0.5 }}>
           Pay Summary
         </Typography>
         {action}
       </Box>
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" }, gap: 2 }}>
-        {/* RATE DERIVATION */}
-        <Typography variant="caption" sx={{ gridColumn: "1 / -1", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, mt: 2 }}>
-          Rate Derivation
-        </Typography>
-        <MetricCard
-          label="Working days this month"
-          subtitle="Determines daily divisor"
+      {/* Derived Rates Summary Bar */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" },
+          gap: 1,
+          p: 1.5,
+          borderRadius: 2,
+          bgcolor: mode === "dark" ? "rgba(255,255,255,0.02)" : "grey.50",
+          border: 1,
+          borderColor: "divider",
+          mb: 2,
+        }}
+      >
+        <RateMetric
+          label="Working Days"
           value={result?.workingDays === undefined ? PLACEHOLDER : String(result.workingDays)}
         />
-        <MetricCard
-          label="Daily rate"
+        <RateMetric
+          label="Daily Rate"
           value={formatValue(result?.dailyRate)}
         />
-        <MetricCard
-          label="Per-hour rate"
+        <RateMetric
+          label="Hourly Rate"
           value={formatValue(result?.hourlyRate)}
         />
-        <MetricCard
-          label="Per-minute rate"
+        <RateMetric
+          label="Per-Minute Rate"
           value={formatValue(result?.perMinRate)}
         />
+      </Box>
 
-        {/* COMPUTATION */}
-        <Typography variant="caption" sx={{ gridColumn: "1 / -1", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, mt: 2 }}>
-          Computation
-        </Typography>
-        <MetricCard
-          label="Earned Pay"
-          subtitle={earnedSubtitle}
-          value={formatValue(result?.earned)}
-        />
-        <MetricCard
-          label="Less: Absent"
-          subtitle={absentSubtitle}
-          value={formatValue(result?.absentDeduction)}
-          valueColor={result?.absentDeduction && result.absentDeduction > 0 ? "error" : "text.disabled"}
-        >
-          {result && inputs && inputs.lateIncidents && inputs.lateIncidents.length > 0 && (
-            <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: "divider", display: "flex", flexDirection: "column", gap: 1 }}>
-              {inputs.lateIncidents
-                .filter((incident) => incident.type === "absent")
-                .map((incident, index) => {
-                  if (!incident.date?.trim() || !(Number(incident.days) > 0)) {
-                    return null
-                  }
-                  const incidentDeduction = Number(incident.days) * result.dailyRate
-                  return (
-                    <Box key={index} sx={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "text.secondary" }}>
-                      <span>• {incident.date} ({incident.days} day{Number(incident.days) > 1 ? "s" : ""})</span>
-                      <Typography sx={{ fontWeight: 600 }}>{formatPeso(incidentDeduction)}</Typography>
-                    </Box>
-                  )
-                })}
+      {/* Itemized Ledger (Earnings vs Deductions) */}
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: { xs: 2, md: 3 } }}>
+        
+        {/* Earnings Column */}
+        <Box>
+          <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 1, display: "block", mb: 2 }}>
+            Earnings
+          </Typography>
+          
+          <Stack spacing={0.5}>
+            <LedgerRow
+              label="Base Earned Pay"
+              subtitle={earnedSubtitle}
+              value={formatValue(result?.earned)}
+            />
+            <LedgerRow
+              label="20% Premium Surcharge"
+              subtitle="20% of Sub-total"
+              value={formatValue(result?.premium)}
+            />
+            
+            <Box sx={{ pt: 2, mt: 1 }}>
+              <LedgerRow
+                label="Gross Pay"
+                value={formatValue(displayGross)}
+                isBold
+                isTotal
+                color="success.main"
+              />
             </Box>
-          )}
-        </MetricCard>
-        <MetricCard
-          label="Less: Late"
-          subtitle={lateSubtitle}
-          value={formatValue(result?.lateDeduction)}
-          valueColor={result?.lateDeduction && result.lateDeduction > 0 ? "error" : "text.disabled"}
-        >
-          {result && inputs && inputs.lateIncidents && inputs.lateIncidents.length > 0 && (
-            <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: "divider", display: "flex", flexDirection: "column", gap: 1 }}>
-              {inputs.lateIncidents
-                .filter((incident) => incident.type === "late")
-                .map((incident, index) => {
-                  if (!incident.date?.trim() || !(Number(incident.minutes) > 0)) {
-                    return null
-                  }
-                  const incidentDeduction = Number(incident.minutes) * result.perMinRate
-                  return (
-                    <Box key={index} sx={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "text.secondary" }}>
-                      <span>• {incident.date} ({incident.minutes} mins)</span>
-                      <Typography sx={{ fontWeight: 600 }}>{formatPeso(incidentDeduction)}</Typography>
-                    </Box>
-                  )
-                })}
-            </Box>
-          )}
-        </MetricCard>
-        <MetricCard
-          label="Less: Undertime"
-          subtitle={undertimeSubtitle}
-          value={formatValue(result?.undertimeDeduction)}
-          valueColor={result?.undertimeDeduction && result.undertimeDeduction > 0 ? "error" : "text.disabled"}
-        >
-          {result && inputs && inputs.lateIncidents && inputs.lateIncidents.length > 0 && (
-            <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: "divider", display: "flex", flexDirection: "column", gap: 1 }}>
-              {inputs.lateIncidents
-                .filter((incident) => incident.type === "undertime")
-                .map((incident, index) => {
-                  if (!incident.date?.trim() || !(Number(incident.minutes) > 0)) {
-                    return null
-                  }
-                  const incidentDeduction = Number(incident.minutes) * result.perMinRate
-                  return (
-                    <Box key={index} sx={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "text.secondary" }}>
-                      <span>• {incident.date} ({incident.minutes} mins)</span>
-                      <Typography sx={{ fontWeight: 600 }}>{formatPeso(incidentDeduction)}</Typography>
-                    </Box>
-                  )
-                })}
-            </Box>
-          )}
-        </MetricCard>
-        <MetricCard
-          label="Sub-total"
-          value={formatValue(result?.total)}
-        />
-        <MetricCard
-          label="Add: 20% Premium"
-          subtitle="20% of Sub-total"
-          value={formatValue(result?.premium)}
-        />
-        <MetricCard
-          label="Gross Pay"
-          subtitle="Sub-total + Premium"
-          value={formatValue(displayGross)}
-          sx={{ bgcolor: mode === "dark" ? "rgba(5, 150, 105, 0.15)" : "rgba(5, 150, 105, 0.08)", borderColor: "success.main" }}
-        />
+          </Stack>
+        </Box>
 
-        {/* DEDUCTIONS */}
-        <Typography variant="caption" sx={{ gridColumn: "1 / -1", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, mt: 2 }}>
-          Deductions from Gross Pay
-        </Typography>
-        <MetricCard
-          label="Taxable Income"
-          subtitle={exemptionLabel}
-          value={formatValue(result?.taxableIncome)}
-        />
-        <MetricCard
-          label={taxLabel}
-          subtitle={taxSubtitle}
-          value={formatValue(result?.tax)}
-          valueColor={result?.tax && result.tax > 0 ? "error" : "text.disabled"}
-        />
-        <MetricCard
-          label="Less: Overpayment"
-          value={formatValue(result?.overpayment)}
-          valueColor={result?.overpayment && result.overpayment > 0 ? "error" : "text.disabled"}
-        />
-        <MetricCard
-          label="Less: Overpayment Premium"
-          subtitle="20% of Overpayment"
-          value={formatValue(result?.overpaymentPremium)}
-          valueColor={result?.overpaymentPremium && result.overpaymentPremium > 0 ? "error" : "text.disabled"}
-        />
+        {/* Deductions Column */}
+        <Box>
+          <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 1, display: "block", mb: 2 }}>
+            Deductions
+          </Typography>
+          
+          <Stack spacing={0.5}>
+            <Box>
+              <LedgerRow
+                label="Absent Days"
+                subtitle={absentSubtitle}
+                value={formatValue(result?.absentDeduction)}
+                isNegative={result?.absentDeduction && result.absentDeduction > 0 ? true : false}
+              />
+              {result && inputs && inputs.lateIncidents && (
+                <IncidentLogList
+                  incidents={inputs.lateIncidents}
+                  type="absent"
+                  rate={result.dailyRate}
+                  unit="d"
+                />
+              )}
+            </Box>
 
-        {/* RESULT */}
-        <Typography variant="caption" sx={{ gridColumn: "1 / -1", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, mt: 2 }}>
-          Result
+            <Box>
+              <LedgerRow
+                label="Late Minutes"
+                subtitle={lateSubtitle}
+                value={formatValue(result?.lateDeduction)}
+                isNegative={result?.lateDeduction && result.lateDeduction > 0 ? true : false}
+              />
+              {result && inputs && inputs.lateIncidents && (
+                <IncidentLogList
+                  incidents={inputs.lateIncidents}
+                  type="late"
+                  rate={result.perMinRate}
+                  unit="m"
+                />
+              )}
+            </Box>
+
+            <Box>
+              <LedgerRow
+                label="Undertime Minutes"
+                subtitle={undertimeSubtitle}
+                value={formatValue(result?.undertimeDeduction)}
+                isNegative={result?.undertimeDeduction && result.undertimeDeduction > 0 ? true : false}
+              />
+              {result && inputs && inputs.lateIncidents && (
+                <IncidentLogList
+                  incidents={inputs.lateIncidents}
+                  type="undertime"
+                  rate={result.perMinRate}
+                  unit="m"
+                />
+              )}
+            </Box>
+
+            <LedgerRow
+              label="Taxable Income"
+              subtitle={exemptionLabel}
+              value={formatValue(result?.taxableIncome)}
+            />
+
+            <LedgerRow
+              label={taxLabel}
+              subtitle={taxSubtitle}
+              value={formatValue(result?.tax)}
+              isNegative={result?.tax && result.tax > 0 ? true : false}
+            />
+
+            <LedgerRow
+              label="Overpayment Recovery"
+              value={formatValue(result?.overpayment)}
+              isNegative={result?.overpayment && result.overpayment > 0 ? true : false}
+            />
+
+            <LedgerRow
+              label="Overpayment Surcharge (20%)"
+              value={formatValue(result?.overpaymentPremium)}
+              isNegative={result?.overpaymentPremium && result.overpaymentPremium > 0 ? true : false}
+            />
+            
+            <Box sx={{ pt: 2, mt: 1 }}>
+              <LedgerRow
+                label="Total Deductions"
+                value={formatValue(result?.totalDeductions)}
+                isBold
+                isTotal
+                isNegative={result?.totalDeductions && result.totalDeductions > 0 ? true : false}
+              />
+            </Box>
+          </Stack>
+        </Box>
+      </Box>
+
+      {/* Net Pay Banner */}
+      <Box
+        sx={{
+          mt: 2,
+          p: 1.5,
+          borderRadius: 2,
+          bgcolor: mode === "dark" ? "rgba(5, 150, 105, 0.15)" : "rgba(5, 150, 105, 0.06)",
+          border: 1,
+          borderColor: mode === "dark" ? "success.dark" : "success.light",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <Box>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: mode === "dark" ? "#6ee7b7" : "#047857", textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Net Take-home Pay
+          </Typography>
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+            Final payroll payout for the designated cutoff period
+          </Typography>
+        </Box>
+        <Typography
+          variant="h4"
+          sx={{
+            fontWeight: 900,
+            color: mode === "dark" ? "#34d399" : "#059669",
+            letterSpacing: -0.5,
+          }}
+        >
+          {formatValue(result?.netPay)}
         </Typography>
-        <MetricCard
-          label="Net Amount"
-          value={formatValue(result?.netPay)}
-          valueColor="success"
-          valueStyle={{ fontSize: "28px" }}
-          sx={{ gridColumn: { xs: "1 / -1", sm: "1 / -1", lg: "1 / -1" }, bgcolor: mode === "dark" ? "rgba(5, 150, 105, 0.15)" : "rgba(5, 150, 105, 0.08)", borderColor: "success.main" }}
-        />
       </Box>
     </Paper>
   )
 }
 
-function MetricCard({
+function RateMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <Box>
+      <Typography variant="caption" sx={{ color: "text.secondary", display: "block" }}>
+        {label}
+      </Typography>
+      <Typography variant="body2" sx={{ fontWeight: 700, color: "text.primary" }}>
+        {value}
+      </Typography>
+    </Box>
+  )
+}
+
+function LedgerRow({
   label,
   subtitle,
   value,
-  valueColor,
-  valueStyle,
-  sx,
-  children,
+  isNegative,
+  isBold,
+  isTotal,
+  color,
 }: {
   label: string
   subtitle?: string | undefined
   value: string
-  valueColor?: "error" | "success" | "text.disabled" | "text.secondary" | undefined
-  valueStyle?: CSSProperties | undefined
-  sx?: object | undefined
-  children?: React.ReactNode | undefined
+  isNegative?: boolean | undefined
+  isBold?: boolean | undefined
+  isTotal?: boolean | undefined
+  color?: string | undefined
 }) {
-  const theme = useTheme()
-  const mode = theme.palette.mode
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "baseline",
+        py: 1,
+        borderBottom: isTotal ? "2px double" : "1px dashed",
+        borderColor: isTotal ? "divider" : "rgba(0, 0, 0, 0.05)",
+        "&": {
+          borderColor: (theme) => theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)",
+        }
+      }}
+    >
+      <Box sx={{ pr: 2 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            fontWeight: isBold || isTotal ? 700 : 500,
+            color: color || "text.primary",
+          }}
+        >
+          {label}
+        </Typography>
+        {subtitle && (
+          <Typography variant="caption" sx={{ color: "text.secondary", display: "block", fontSize: "0.72rem" }}>
+            {subtitle}
+          </Typography>
+        )}
+      </Box>
+      <Typography
+        variant="body2"
+        sx={{
+          fontWeight: isBold || isTotal ? 700 : 600,
+          color: color || (isNegative && value !== PLACEHOLDER && value !== "₱0.00" ? "error.main" : "text.primary"),
+        }}
+      >
+        {isNegative && value !== PLACEHOLDER && value !== "₱0.00" ? `(${value})` : value}
+      </Typography>
+    </Box>
+  )
+}
+
+function IncidentLogList({
+  incidents,
+  type,
+  rate,
+  unit,
+}: {
+  incidents: Array<{ date: string; minutes: number; type: "late" | "undertime" | "absent"; days?: number }>
+  type: "late" | "undertime" | "absent"
+  rate: number
+  unit: string
+}) {
+  const filtered = incidents.filter((i) => i.type === type)
+  if (filtered.length === 0) return null
 
   return (
-    <Paper variant="outlined" sx={{ p: 2, bgcolor: mode === "dark" ? "rgba(255, 255, 255, 0.03)" : "grey.50", ...sx }}>
-      <Typography variant="body2" sx={{ fontWeight: 500, color: "text.secondary" }}>
-        {label}
-      </Typography>
-      {subtitle ? <Typography variant="caption" sx={{ display: "block", color: "text.secondary" }}>{subtitle}</Typography> : null}
-      <Typography sx={{ mt: 1, fontWeight: 600, color: valueColor || "text.primary", ...valueStyle }}>
-        {value}
-      </Typography>
-      {children}
-    </Paper>
+    <Box sx={{ pl: 2, mt: 0.5, borderLeft: "2px solid", borderColor: "divider" }}>
+      {filtered.map((incident, idx) => {
+        const count = type === "absent" ? incident.days ?? 0 : incident.minutes
+        if (!incident.date?.trim() || !(count > 0)) return null
+        const deduction = count * rate
+
+        return (
+          <Box
+            key={idx}
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              py: 0.25,
+            }}
+          >
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+              • {incident.date} ({count}{unit})
+            </Typography>
+            <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+              {formatPeso(deduction)}
+            </Typography>
+          </Box>
+        )
+      })}
+    </Box>
   )
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Button, Stack, CircularProgress } from "@mui/material"
+import { Button, CircularProgress } from "@mui/material"
 import { Description as DescriptionIcon, Download as DownloadIcon } from "@mui/icons-material"
 import type { EmployeeInfo, PayrollInputs, PayrollResult } from "@/types/payroll"
 
@@ -9,10 +9,9 @@ export interface ExportButtonProps {
   employee: EmployeeInfo | null
   result: PayrollResult | null
   inputs: PayrollInputs | null
-  className?: string | undefined
 }
 
-export function ExportButton({ employee, result, inputs, className }: ExportButtonProps) {
+export function ExportButton({ employee, result, inputs }: ExportButtonProps) {
   const [loadingPayslip, setLoadingPayslip] = useState(false)
   const [loadingComp, setLoadingComp] = useState(false)
 
@@ -54,24 +53,28 @@ export function ExportButton({ employee, result, inputs, className }: ExportButt
   }
 
   return (
-    <Stack direction="row" spacing={1.5} className={className}>
+    <>
       <Button
         variant="contained"
+        color="primary"
         startIcon={loadingPayslip ? <CircularProgress size={16} color="inherit" /> : <DescriptionIcon />}
         onClick={handleExportPayslip}
         disabled={disabled}
+        sx={{ borderRadius: 1.5, fontWeight: 700 }}
       >
         {loadingPayslip ? "Exporting Payslip…" : "Export Payslip"}
       </Button>
 
       <Button
         variant="outlined"
+        color="primary"
         startIcon={loadingComp ? <CircularProgress size={16} /> : <DownloadIcon />}
         onClick={handleExportComputation}
         disabled={disabled}
+        sx={{ borderRadius: 1.5, fontWeight: 700 }}
       >
         {loadingComp ? "Exporting…" : "Export Computation"}
       </Button>
-    </Stack>
+    </>
   )
 }

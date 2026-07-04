@@ -9,6 +9,8 @@ import {
   Paper,
   Stack,
   useTheme,
+  Divider,
+  Box,
 } from "@mui/material"
 import {
   AccountBox as ProfileIcon,
@@ -247,19 +249,18 @@ export function PayrollForm({ onCompute, onReset, editValues = null }: PayrollFo
       <Paper
         elevation={0}
         sx={{
-          p: { xs: 2, sm: 2.5 },
-          borderRadius: 4,
+          p: { xs: 1.5, sm: 2 },
+          borderRadius: 1.5,
           border: 1,
           borderColor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-          bgcolor: mode === "dark" ? "rgba(30,41,59,0.3)" : "background.paper",
-          backdropFilter: "blur(8px)",
-          boxShadow: mode === "dark" ? "0 10px 30px rgba(0,0,0,0.3)" : "0 10px 30px rgba(0,0,0,0.03)",
+          bgcolor: mode === "dark" ? "rgba(30,41,59,0.2)" : "background.paper",
+          boxShadow: mode === "dark" ? "none" : "0 1px 3px 0 rgba(0, 0, 0, 0.05)",
         }}
       >
         <Typography
           variant="h6"
           sx={{
-            mb: 2.5,
+            mb: 1.5,
             fontWeight: 800,
             color: mode === "dark" ? "#6ee7b7" : "#047857",
             display: "flex",
@@ -272,37 +273,28 @@ export function PayrollForm({ onCompute, onReset, editValues = null }: PayrollFo
           Payroll Configuration
         </Typography>
 
-        <Stack spacing={2.5}>
-          <EmployeeProfileSection />
-          <AuthorizedSignatorySection />
-          <PayslipSignatorySection />
-          <SalaryBaseRatesSection />
-          <AttendanceAdjustmentsSection />
-          <DeductionsTaxSection />
-        </Stack>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3, mb: 2 }}>
+          <Stack spacing={3}>
+            <EmployeeProfileSection />
+            <SalaryBaseRatesSection />
+            <AttendanceAdjustmentsSection />
+          </Stack>
+          <Stack spacing={3}>
+            <DeductionsTaxSection />
+            <AuthorizedSignatorySection />
+            <PayslipSignatorySection />
+          </Stack>
+        </Box>
 
         <Button
           variant="outlined"
+          color="primary"
           fullWidth
           startIcon={<ResetIcon />}
           sx={{
-            mt: 2.5,
-            p: 1,
-            borderRadius: 3,
-            borderWidth: 2,
-            fontWeight: 800,
-            color: mode === "dark" ? "#6ee7b7" : "#059669",
-            borderColor: mode === "dark" ? "#047857" : "#059669",
-            textTransform: "uppercase",
-            letterSpacing: 0.5,
-            fontSize: "0.85rem",
-            transition: "all 0.3s ease",
-            "&:hover": {
-              borderWidth: 2,
-              borderColor: mode === "dark" ? "#34d399" : "#047857",
-              bgcolor: mode === "dark" ? "rgba(52, 211, 153, 0.06)" : "rgba(5, 150, 105, 0.05)",
-              boxShadow: mode === "dark" ? "0 4px 15px rgba(52,211,153,0.1)" : "0 4px 15px rgba(5,150,105,0.06)",
-            }
+            mt: 2,
+            borderRadius: 1.5,
+            fontWeight: 700,
           }}
           onClick={() => {
             reset(createFormDefaultValues())

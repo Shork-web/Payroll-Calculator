@@ -4,9 +4,6 @@ import {
   Delete as DeleteIcon,
   Edit as EditIcon,
   People as PeopleIcon,
-  Paid as PaidIcon,
-  TrendingDown as DeductionsIcon,
-  AccountBalanceWallet as WalletIcon,
   PictureAsPdf as PdfIcon,
   Layers as LayersIcon,
   Add as AddIcon,
@@ -73,17 +70,16 @@ export function PayrollSheet({
     <Paper
       elevation={0}
       sx={{
-        p: { xs: 2.5, sm: 4 },
-        borderRadius: 4,
+        p: { xs: 1.5, sm: 2 },
+        borderRadius: 1.5,
         border: 1,
         borderColor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-        bgcolor: mode === "dark" ? "rgba(30,41,59,0.3)" : "background.paper",
-        backdropFilter: "blur(8px)",
-        boxShadow: mode === "dark" ? "0 10px 30px rgba(0,0,0,0.3)" : "0 10px 30px rgba(0,0,0,0.03)",
+        bgcolor: mode === "dark" ? "rgba(30,41,59,0.2)" : "background.paper",
+        boxShadow: mode === "dark" ? "none" : "0 1px 3px 0 rgba(0, 0, 0, 0.05)",
       }}
     >
       {/* Title & Bulk Export Actions */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4, flexWrap: "wrap", gap: 2 }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 2 }}>
         <Box>
           <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: -0.5 }}>
             Payroll Directory
@@ -98,7 +94,7 @@ export function PayrollSheet({
             <Button
               size="small"
               variant="outlined"
-              color="success"
+              color="primary"
               startIcon={<LayersIcon />}
               disabled={selectedIds.length === 0}
               onClick={() => {
@@ -107,13 +103,7 @@ export function PayrollSheet({
               }}
               sx={{
                 fontWeight: 700,
-                borderRadius: 2.5,
-                borderColor: mode === "dark" ? "#34d399" : "#059669",
-                color: mode === "dark" ? "#6ee7b7" : "#059669",
-                "&:hover": {
-                  borderColor: mode === "dark" ? "#6ee7b7" : "#047857",
-                  bgcolor: mode === "dark" ? "rgba(52, 211, 153, 0.05)" : "rgba(5, 150, 105, 0.04)",
-                }
+                borderRadius: 1.5,
               }}
             >
               Export Register ({selectedIds.length})
@@ -121,7 +111,7 @@ export function PayrollSheet({
             <Button
               size="small"
               variant="outlined"
-              color="success"
+              color="primary"
               startIcon={<DescriptionIcon />}
               disabled={selectedIds.length === 0}
               onClick={() => {
@@ -130,13 +120,7 @@ export function PayrollSheet({
               }}
               sx={{
                 fontWeight: 700,
-                borderRadius: 2.5,
-                borderColor: mode === "dark" ? "#34d399" : "#059669",
-                color: mode === "dark" ? "#6ee7b7" : "#059669",
-                "&:hover": {
-                  borderColor: mode === "dark" ? "#6ee7b7" : "#047857",
-                  bgcolor: mode === "dark" ? "rgba(52, 211, 153, 0.05)" : "rgba(5, 150, 105, 0.04)",
-                }
+                borderRadius: 1.5,
               }}
             >
               Export CSV ({selectedIds.length})
@@ -144,7 +128,7 @@ export function PayrollSheet({
             <Button
               size="small"
               variant="contained"
-              color="success"
+              color="primary"
               startIcon={<PdfIcon />}
               disabled={selectedIds.length === 0}
               onClick={() => {
@@ -153,11 +137,7 @@ export function PayrollSheet({
               }}
               sx={{
                 fontWeight: 700,
-                borderRadius: 2.5,
-                bgcolor: mode === "dark" ? "#047857" : "#059669",
-                "&:hover": {
-                  bgcolor: mode === "dark" ? "#065f46" : "#047857",
-                }
+                borderRadius: 1.5,
               }}
             >
               Export Bulk Payslips ({selectedIds.length})
@@ -165,7 +145,7 @@ export function PayrollSheet({
             <Button
               size="small"
               variant="contained"
-              color="success"
+              color="primary"
               startIcon={<PdfIcon />}
               disabled={selectedIds.length === 0}
               onClick={() => {
@@ -174,11 +154,7 @@ export function PayrollSheet({
               }}
               sx={{
                 fontWeight: 700,
-                borderRadius: 2.5,
-                bgcolor: mode === "dark" ? "#047857" : "#059669",
-                "&:hover": {
-                  bgcolor: mode === "dark" ? "#065f46" : "#047857",
-                }
+                borderRadius: 1.5,
               }}
             >
               Export Bulk Computations ({selectedIds.length})
@@ -208,46 +184,37 @@ export function PayrollSheet({
           </Typography>
         </Paper>
       ) : (
-        <Stack spacing={4}>
+        <Stack spacing={2}>
           {/* Consolidated Metrics Grid */}
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" }, gap: 2 }}>
-            <MetricSummaryCard
-              icon={<PeopleIcon />}
-              label="Employees"
-              value={String(totalEmployees)}
-              color="info"
-            />
-            <MetricSummaryCard
-              icon={<PaidIcon />}
-              label="Total Gross"
-              value={formatPeso(totalGross)}
-              color="success"
-            />
-            <MetricSummaryCard
-              icon={<DeductionsIcon />}
-              label="Total Deductions"
-              value={formatPeso(totalDeductions)}
-              color="error"
-            />
-            <MetricSummaryCard
-              icon={<WalletIcon />}
-              label="Total Net Pay"
-              value={formatPeso(totalNet)}
-              color="primary"
-            />
-          </Box>
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 1.5,
+              borderRadius: 2.5,
+              borderColor: "divider",
+              bgcolor: mode === "dark" ? "rgba(255, 255, 255, 0.02)" : "grey.50",
+              display: "grid",
+              gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" },
+              gap: 1.5,
+            }}
+          >
+            <FlatMetric label="Total Employees" value={String(totalEmployees)} />
+            <FlatMetric label="Total Gross" value={formatPeso(totalGross)} color="success.main" />
+            <FlatMetric label="Total Deductions" value={formatPeso(totalDeductions)} color="error.main" />
+            <FlatMetric label="Total Net Pay" value={formatPeso(totalNet)} color="primary.main" isBold />
+          </Paper>
 
           {/* Register Signatories Input Section */}
           <Paper
             variant="outlined"
             sx={{
-              p: 3,
-              borderRadius: 3.5,
-              borderColor: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-              bgcolor: mode === "dark" ? "rgba(255,255,255,0.01)" : "rgba(0,0,0,0.01)",
+              p: 1.5,
+              borderRadius: 3,
+              borderColor: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+              bgcolor: mode === "dark" ? "rgba(30,41,59,0.1)" : "background.paper",
               display: "flex",
               flexDirection: "column",
-              gap: 2.5,
+              gap: 2,
             }}
           >
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 2 }}>
@@ -262,21 +229,14 @@ export function PayrollSheet({
               <Button
                 size="small"
                 variant="outlined"
-                color="success"
+                color="primary"
                 startIcon={<AddIcon />}
                 onClick={() => {
                   onSignatoriesChange([...signatories, { label: "Prepared by:", name: "", title: "" }])
                 }}
                 sx={{
-                  fontSize: "0.75rem",
-                  borderRadius: 2,
-                  fontWeight: 600,
-                  borderColor: mode === "dark" ? "#34d399" : "#059669",
-                  color: mode === "dark" ? "#6ee7b7" : "#059669",
-                  "&:hover": {
-                    borderColor: mode === "dark" ? "#6ee7b7" : "#047857",
-                    bgcolor: mode === "dark" ? "rgba(52, 211, 153, 0.05)" : "rgba(5, 150, 105, 0.04)",
-                  }
+                  borderRadius: 1.5,
+                  fontWeight: 700,
                 }}
               >
                 Add Signatory
@@ -290,58 +250,61 @@ export function PayrollSheet({
                 </Typography>
               </Box>
             ) : (
-              <Stack spacing={2} sx={{ mt: 1 }}>
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2, mt: 1 }}>
                 {signatories.map((sig, index) => (
-                  <Paper
+                  <Box
                     key={index}
-                    variant="outlined"
                     sx={{
-                      p: 2,
-                      borderRadius: 2.5,
-                      borderColor: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-                      bgcolor: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "background.paper",
+                      p: 1.5,
+                      borderRadius: 1.5,
+                      border: 1,
+                      borderColor: "divider",
+                      bgcolor: mode === "dark" ? "rgba(255, 255, 255, 0.02)" : "grey.50",
                       display: "flex",
-                      gap: 2,
+                      gap: 1.5,
                       alignItems: "center",
-                      flexDirection: { xs: "column", md: "row" }
                     }}
                   >
-                    <TextField
-                      label="Prepared By / Role / Label"
-                      placeholder="e.g. Prepared by:"
-                      size="small"
-                      sx={{ flex: 1, width: "100%" }}
-                      value={sig.label}
-                      onChange={(e) => {
-                        const newSigs = [...signatories]
-                        newSigs[index]! = { ...newSigs[index]!, label: e.target.value }
-                        onSignatoriesChange(newSigs)
-                      }}
-                    />
-                    <TextField
-                      label="Signatory Name"
-                      placeholder="e.g. Juan dela Cruz"
-                      size="small"
-                      sx={{ flex: 1.5, width: "100%" }}
-                      value={sig.name}
-                      onChange={(e) => {
-                        const newSigs = [...signatories]
-                        newSigs[index]! = { ...newSigs[index]!, name: e.target.value }
-                        onSignatoriesChange(newSigs)
-                      }}
-                    />
-                    <TextField
-                      label="Signatory Title"
-                      placeholder="e.g. Administrative Officer V"
-                      size="small"
-                      sx={{ flex: 1.5, width: "100%" }}
-                      value={sig.title}
-                      onChange={(e) => {
-                        const newSigs = [...signatories]
-                        newSigs[index]! = { ...newSigs[index]!, title: e.target.value }
-                        onSignatoriesChange(newSigs)
-                      }}
-                    />
+                    <Stack spacing={1.5} sx={{ flex: 1 }}>
+                      <TextField
+                        label="Label (e.g. Prepared by:)"
+                        placeholder="e.g. Prepared by:"
+                        size="small"
+                        fullWidth
+                        value={sig.label}
+                        onChange={(e) => {
+                          const newSigs = [...signatories]
+                          newSigs[index]! = { ...newSigs[index]!, label: e.target.value }
+                          onSignatoriesChange(newSigs)
+                        }}
+                      />
+                      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
+                        <TextField
+                          label="Signatory Name"
+                          placeholder="e.g. Juan dela Cruz"
+                          size="small"
+                          fullWidth
+                          value={sig.name}
+                          onChange={(e) => {
+                            const newSigs = [...signatories]
+                            newSigs[index]! = { ...newSigs[index]!, name: e.target.value }
+                            onSignatoriesChange(newSigs)
+                          }}
+                        />
+                        <TextField
+                          label="Title / Designation"
+                          placeholder="e.g. AO V"
+                          size="small"
+                          fullWidth
+                          value={sig.title}
+                          onChange={(e) => {
+                            const newSigs = [...signatories]
+                            newSigs[index]! = { ...newSigs[index]!, title: e.target.value }
+                            onSignatoriesChange(newSigs)
+                          }}
+                        />
+                      </Box>
+                    </Stack>
                     <IconButton
                       onClick={() => {
                         const newSigs = signatories.filter((_, idx) => idx !== index)
@@ -350,22 +313,22 @@ export function PayrollSheet({
                       sx={{
                         color: "error.main",
                         border: 1,
-                        borderColor: "error.light",
-                        borderRadius: 2,
+                        borderColor: "divider",
+                        borderRadius: 1.5,
                         p: 0.75,
-                        alignSelf: { xs: "flex-end", md: "auto" },
                         "&:hover": {
                           bgcolor: "error.light",
-                          color: "white"
+                          color: "white",
+                          borderColor: "error.light",
                         }
                       }}
                       title="Remove signatory"
                     >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
-                  </Paper>
+                  </Box>
                 ))}
-              </Stack>
+              </Box>
             )}
           </Paper>
 
@@ -375,7 +338,7 @@ export function PayrollSheet({
             component={Paper}
             variant="outlined"
             sx={{
-              borderRadius: 3,
+              borderRadius: 2,
               borderColor: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
               bgcolor: "transparent"
             }}
@@ -517,64 +480,33 @@ export function PayrollSheet({
   )
 }
 
-function MetricSummaryCard({
-  icon,
+function FlatMetric({
   label,
   value,
   color,
+  isBold,
 }: {
-  icon: React.ReactNode
   label: string
   value: string
-  color: "info" | "success" | "error" | "primary"
+  color?: string
+  isBold?: boolean
 }) {
-  const theme = useTheme()
-  const mode = theme.palette.mode
-
-  let colorAccent = "#059669"
-  if (color === "error") colorAccent = "#dc2626"
-  if (color === "info") colorAccent = "#2563eb"
-  if (color === "primary") colorAccent = theme.palette.primary.main
-
   return (
-    <Paper
-      variant="outlined"
-      sx={{
-        p: 2,
-        display: "flex",
-        alignItems: "center",
-        gap: 2,
-        borderRadius: 3,
-        borderColor: mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-        bgcolor: mode === "dark" ? "rgba(255, 255, 255, 0.01)" : "grey.50",
-      }}
-    >
-      <Box
+    <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+      <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+        {label}
+      </Typography>
+      <Typography
+        variant="h6"
         sx={{
-          p: 1,
-          borderRadius: 2,
-          display: "flex",
-          alignItems: "center",
-          bgcolor: color === "success"
-            ? "rgba(5, 150, 105, 0.1)"
-            : color === "error"
-              ? "rgba(220, 38, 38, 0.1)"
-              : color === "info"
-                ? "rgba(37, 99, 235, 0.1)"
-                : "rgba(16, 185, 129, 0.1)",
-          color: colorAccent,
+          fontWeight: isBold ? 850 : 700,
+          color: color || "text.primary",
+          mt: 0.5,
+          letterSpacing: -0.5,
         }}
       >
-        {icon}
-      </Box>
-      <Box>
-        <Typography variant="caption" sx={{ color: "text.secondary", display: "block", fontWeight: 500 }}>
-          {label}
-        </Typography>
-        <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "text.primary" }}>
-          {value}
-        </Typography>
-      </Box>
-    </Paper>
+        {value}
+      </Typography>
+    </Box>
   )
 }

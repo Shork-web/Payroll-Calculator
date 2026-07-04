@@ -1,3 +1,21 @@
+
+
+:root {
+  --background-start: #f8fafc;
+  --background-end: #e2e8f0;
+}
+
+.dark {
+  --background-start: #0f172a;
+  --background-end: #1e293b;
+}
+
+body {
+  background: linear-gradient(135deg, var(--background-start) 0%, var(--background-end) 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
 .print-only {
   display: none;
 }
@@ -15,4 +33,15 @@
     background: #ffffff;
     color: #171717;
   }
+}
+
+/* Hide number input spinners globally for a cleaner, unified look */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
