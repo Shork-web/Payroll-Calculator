@@ -372,7 +372,7 @@ export function renderPayrollComputationPage(
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8)
   doc.setTextColor(0, 0, 0) // Black
-  doc.text("Employee Signature", pageMargin + 4, y + 8)
+  doc.text(employee.position || "Employee Signature", pageMargin + 4, y + 8)
 
   // Right Column: Certified Signatory
   doc.line(midX + 6, y, RM - 4, y) // Signature Line
@@ -1439,7 +1439,7 @@ export function exportAttendanceCertificatePdf(entry: PayrollEntry): void {
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8)
   doc.setTextColor(120, 120, 120)
-  doc.text("Employee Signature", employeeLineX, y)
+  doc.text(employee.position || "Employee Signature", employeeLineX, y)
 
   const officerTitle = employee.payslipSignatoryTitle || employee.signatoryTitle || "Payroll Officer"
   doc.text(officerTitle, certifiedLineX, y)
