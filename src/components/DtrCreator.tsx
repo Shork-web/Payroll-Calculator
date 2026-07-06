@@ -656,7 +656,7 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
       </Grid>
 
       {/* 2. Interactive Calendar Log Grid Table */}
-      <Grid size={{ xs: 12, md: 8 }}>
+      <Grid size={{ xs: 12, md: 8 }} sx={{ display: "flex", flexDirection: "column" }}>
         <Paper
           elevation={0}
           sx={{
@@ -664,6 +664,10 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
             borderRadius: 2.5,
             border: 1,
             borderColor: "divider",
+            display: "flex",
+            flexDirection: "column",
+            flexGrow: 1,
+            height: { xs: "auto", md: "100%" },
           }}
         >
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
@@ -684,7 +688,16 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
             />
           </Box>
 
-          <TableContainer sx={{ maxHeight: 600, border: 1, borderColor: "divider", borderRadius: 2 }}>
+          <TableContainer
+            sx={{
+              flexGrow: 1,
+              height: { xs: "auto", md: 0 },
+              maxHeight: { xs: 600, md: "none" },
+              border: 1,
+              borderColor: "divider",
+              borderRadius: 2,
+            }}
+          >
             <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>
