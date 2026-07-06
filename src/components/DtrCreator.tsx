@@ -90,11 +90,11 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
   const [timeScheduleTo, setTimeScheduleTo] = useState<string>("5:00 PM")
   const [paperSize, setPaperSize] = useState<"a4" | "letter" | "legal">("a4")
 
-  // Default Prescribed Office Hours
-  const [baseAmIn, setBaseAmIn] = useState<string>("08:00")
-  const [baseAmOut, setBaseAmOut] = useState<string>("12:00")
-  const [basePmIn, setBasePmIn] = useState<string>("01:00")
-  const [basePmOut, setBasePmOut] = useState<string>("05:00")
+  // Default Prescribed Office Hours Configuration
+  const getDefaultTimesForDay = () => {
+    return { amIn: "08:00", amOut: "12:00", pmIn: "01:00", pmOut: "05:00" }
+  }
+
 
   const [days, setDays] = useState<DtrDayLog[]>([])
 
@@ -121,14 +121,17 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
       const dayOfWeek = date.getDay() // 0 = Sun, 6 = Sat
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
       const dayName = date.toLocaleDateString("en-US", { weekday: "short" })
+      const defaults = isWeekend
+        ? { amIn: "", amOut: "", pmIn: "", pmOut: "" }
+        : getDefaultTimesForDay()
 
       list.push({
         day: d,
         dayName,
-        amIn: isWeekend ? "" : "08:00",
-        amOut: isWeekend ? "" : "12:00",
-        pmIn: isWeekend ? "" : "01:00",
-        pmOut: isWeekend ? "" : "05:00",
+        amIn: defaults.amIn,
+        amOut: defaults.amOut,
+        pmIn: defaults.pmIn,
+        pmOut: defaults.pmOut,
         status: isWeekend ? "weekend" : "regular",
         lateMinutes: 0,
         undertimeMinutes: 0,
@@ -147,46 +150,116 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
     let late = 0
     let ut = 0
 
-    const baseAmInMin = parseTimeToMinutes(baseAmIn, false)
-    const baseAmOutMin = parseTimeToMinutes(baseAmOut, false)
-    const basePmInMin = parseTimeToMinutes(basePmIn, true)
-    const basePmOutMin = parseTimeToMinutes(basePmOut, true)
+    const calcSchedule = (
+      targetAmInStr: string,
+      targetAmOutStr: string,
+      targetPmInStr: string,
+      targetPmOutStr: string
+    ) => {
+      let l = 0
+      let u = 0
+      const targetAmIn = parseTimeToMinutes(targetAmInStr, false)
+      const targetAmOut = parseTimeToMinutes(targetAmOutStr, false)
+      const targetPmIn = parseTimeToMinutes(targetPmInStr, true)
+      const targetPmOut = parseTimeToMinutes(targetPmOutStr, true)
 
-    // AM IN Late
-    if (log.amIn) {
-      const logAmInMin = parseTimeToMinutes(log.amIn, false)
-      if (logAmInMin > baseAmInMin) {
-        late += logAmInMin - baseAmInMin
+      if (log.amIn) {
+        const amInMin = parseTimeToMinutes(log.amIn, false)
+        if (amInMin > targetAmIn) {
+          l += amInMin - targetAmIn
+        }
       }
+
+      if (log.pmIn) {
+        const pmInMin = parseTimeToMinutes(log.pmIn, true)
+        if (pmInMin > targetPmIn) {
+          l += pmInMin - targetPmIn
+        }
+      }
+
+      if (log.status !== "special") {
+        if (log.amOut) {
+          const amOutMin = parseTimeToMinutes(log.amOut, false)
+          if (amOutMin < targetAmOut) {
+            u += targetAmOut - amOutMin
+          }
+        }
+        if (log.pmOut) {
+          const pmOutMin = parseTimeToMinutes(log.pmOut, true)
+          if (pmOutMin < targetPmOut) {
+            u += targetPmOut - pmOutMin
+          }
+        }
+      }
+
+      return { late: l, ut: u }
     }
 
-    // PM IN Late
-    if (log.pmIn) {
-      const logPmInMin = parseTimeToMinutes(log.pmIn, true)
-      if (logPmInMin > basePmInMin) {
-        late += logPmInMin - basePmInMin
-      }
-    }
+    const dayNameLower = (log.dayName || "").toLowerCase()
+    const isMonday = dayNameLower.startsWith("mon")
+    const isTuesdayToFriday =
+      dayNameLower.startsWith("tue") ||
+      dayNameLower.startsWith("wed") ||
+      dayNameLower.startsWith("thu") ||
+      dayNameLower.startsWith("fri")
 
-    // Special Case — employee is on official duty, no undertime penalty ever
-    if (log.status === "special") {
-      return { lateMinutes: late, undertimeMinutes: 0 }
-    }
+    if (isMonday) {
+      // Monday Strict (7-4 or 8-5)
+      const option1 = calcSchedule("07:00", "12:00", "01:00", "04:00") // 7-4
+      const option2 = calcSchedule("08:00", "12:00", "01:00", "05:00") // 8-5
+      const opt1Total = option1.late + option1.ut
+      const opt2Total = option2.late + option2.ut
 
-    // AM OUT Undertime (regular only)
-    if (log.amOut) {
-      const logAmOutMin = parseTimeToMinutes(log.amOut, false)
-      if (logAmOutMin < baseAmOutMin) {
-        ut += baseAmOutMin - logAmOutMin
+      if (opt1Total < opt2Total) {
+        late = option1.late
+        ut = option1.ut
+      } else {
+        late = option2.late
+        ut = option2.ut
       }
-    }
+    } else if (isTuesdayToFriday) {
+      // Tuesday-Friday Flexi (7-4, 8-5, 9-6)
+      let requiredPmOutMin = 1020 // Default 5:00 PM (17:00) in minutes
+      
+      if (log.amIn) {
+        const amInMin = parseTimeToMinutes(log.amIn, false)
+        if (amInMin <= 420) { // 7:00 AM or earlier
+          requiredPmOutMin = 960 // 4:00 PM (16:00)
+        } else if (amInMin > 420 && amInMin <= 540) { // between 7:00 AM and 9:00 AM
+          requiredPmOutMin = amInMin + 540 // AM IN + 8 hours work + 1 hour lunch
+        } else { // after 9:00 AM
+          late += amInMin - 540 // Late relative to 9:00 AM
+          requiredPmOutMin = 1080 // 6:00 PM (18:00)
+        }
+      }
 
-    // PM OUT Undertime (regular only)
-    if (log.pmOut) {
-      const logPmOutMin = parseTimeToMinutes(log.pmOut, true)
-      if (logPmOutMin < basePmOutMin) {
-        ut += basePmOutMin - logPmOutMin
+      if (log.pmIn) {
+        const pmInMin = parseTimeToMinutes(log.pmIn, true)
+        if (pmInMin > 780) { // PM IN target: 1:00 PM
+          late += pmInMin - 780
+        }
       }
+
+      if (log.status !== "special") {
+        if (log.amOut) {
+          const amOutMin = parseTimeToMinutes(log.amOut, false)
+          if (amOutMin < 720) { // AM OUT target: 12:00 PM
+            ut += 720 - amOutMin
+          }
+        }
+
+        if (log.pmOut) {
+          const pmOutMin = parseTimeToMinutes(log.pmOut, true)
+          if (pmOutMin < requiredPmOutMin) {
+            ut += requiredPmOutMin - pmOutMin
+          }
+        }
+      }
+    } else {
+      // Fallback for other days (e.g. working weekends) - default 8-5 schedule
+      const fallbackOpt = calcSchedule("08:00", "12:00", "01:00", "05:00")
+      late = fallbackOpt.late
+      ut = fallbackOpt.ut
     }
 
     return { lateMinutes: late, undertimeMinutes: ut }
@@ -217,10 +290,11 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
             updated.location = ""
           } else {
             // Back to regular — restore default schedule
-            updated.amIn = "08:00"
-            updated.amOut = "12:00"
-            updated.pmIn = "01:00"
-            updated.pmOut = "05:00"
+            const defaults = getDefaultTimesForDay()
+            updated.amIn = defaults.amIn
+            updated.amOut = defaults.amOut
+            updated.pmIn = defaults.pmIn
+            updated.pmOut = defaults.pmOut
             updated.location = ""
             updated.specialNote = ""
           }
@@ -240,12 +314,13 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
     setDays((prev) =>
       prev.map((log) => {
         if (log.status !== "regular" && log.status !== "special") return log
+        const defaults = getDefaultTimesForDay()
         const updated = {
           ...log,
-          amIn: baseAmIn,
-          amOut: baseAmOut,
-          pmIn: basePmIn,
-          pmOut: basePmOut,
+          amIn: defaults.amIn,
+          amOut: defaults.amOut,
+          pmIn: defaults.pmIn,
+          pmOut: defaults.pmOut,
         }
         const { lateMinutes, undertimeMinutes } = computeDayAdjustments(updated)
         updated.lateMinutes = lateMinutes
@@ -532,55 +607,25 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
               bgcolor: mode === "dark" ? "rgba(30,41,59,0.2)" : "background.paper",
             }}
           >
-            <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 2 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
               Prescribed Office Hours
             </Typography>
 
-            <Grid container spacing={1.5}>
-              <Grid size={{ xs: 6 }}>
-                <TextField
-                  label="AM IN"
-                  size="small"
-                  placeholder="08:00"
-                  value={baseAmIn}
-                  onChange={(e) => setBaseAmIn(e.target.value)}
-                />
-              </Grid>
-              <Grid size={{ xs: 6 }}>
-                <TextField
-                  label="AM OUT"
-                  size="small"
-                  placeholder="12:00"
-                  value={baseAmOut}
-                  onChange={(e) => setBaseAmOut(e.target.value)}
-                />
-              </Grid>
-              <Grid size={{ xs: 6 }}>
-                <TextField
-                  label="PM IN"
-                  size="small"
-                  placeholder="13:00"
-                  value={basePmIn}
-                  onChange={(e) => setBasePmIn(e.target.value)}
-                />
-              </Grid>
-              <Grid size={{ xs: 6 }}>
-                <TextField
-                  label="PM OUT"
-                  size="small"
-                  placeholder="17:00"
-                  value={basePmOut}
-                  onChange={(e) => setBasePmOut(e.target.value)}
-                />
-              </Grid>
-            </Grid>
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
+                • <strong>Monday Strict:</strong> 7-4 or 8-5 schedule
+              </Typography>
+              <Typography variant="caption" color="text.secondary" component="div">
+                • <strong>Tue - Fri Flexi:</strong> 7-4, 8-5, or 9-6 (arrive 7am - 9am)
+              </Typography>
+            </Box>
 
             <Button
               variant="outlined"
               fullWidth
               startIcon={<FillIcon />}
               onClick={handleApplyDefaultSchedule}
-              sx={{ mt: 2.5, fontWeight: 700, borderRadius: 1.5 }}
+              sx={{ mt: 2, fontWeight: 700, borderRadius: 1.5 }}
             >
               Fill Default Weekdays
             </Button>
@@ -812,7 +857,7 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                             <TableCell>
                               <TextField
                                 size="small"
-                                placeholder="13:00"
+                                placeholder="01:00"
                                 value={log.pmIn}
                                 disabled={!isRegular}
                                 onChange={(e) => handleLogChange(log.day, "pmIn", e.target.value)}
@@ -825,7 +870,7 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                             <TableCell>
                               <TextField
                                 size="small"
-                                placeholder="17:00"
+                                placeholder="05:00"
                                 value={log.pmOut}
                                 disabled={!isRegular}
                                 onChange={(e) => handleLogChange(log.day, "pmOut", e.target.value)}
