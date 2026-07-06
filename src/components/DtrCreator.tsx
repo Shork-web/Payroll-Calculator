@@ -168,7 +168,12 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
       }
     }
 
-    // AM OUT Undertime
+    // Special Case — employee is on official duty, no undertime penalty ever
+    if (log.status === "special") {
+      return { lateMinutes: late, undertimeMinutes: 0 }
+    }
+
+    // AM OUT Undertime (regular only)
     if (log.amOut) {
       const logAmOutMin = parseTimeToMinutes(log.amOut, false)
       if (logAmOutMin < baseAmOutMin) {
@@ -176,7 +181,7 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
       }
     }
 
-    // PM OUT Undertime
+    // PM OUT Undertime (regular only)
     if (log.pmOut) {
       const logPmOutMin = parseTimeToMinutes(log.pmOut, true)
       if (logPmOutMin < basePmOutMin) {
@@ -195,9 +200,10 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
 
         const updated = { ...log, [field]: value } as DtrDayLog
 
-        // Clear values if status is not regular
+        // Handle status change side effects
         if (field === "status") {
           if (value === "weekend" || value === "holiday" || value === "absent" || value === "leave" || value === "ob") {
+            // Non-working statuses — clear all time fields
             updated.amIn = ""
             updated.amOut = ""
             updated.pmIn = ""
@@ -205,12 +211,18 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
             if (value !== "ob") {
               updated.location = ""
             }
+          } else if (value === "special") {
+            // Special Case — preserve any times the user already entered.
+            // Just clear the location field (not needed for special).
+            updated.location = ""
           } else {
+            // Back to regular — restore default schedule
             updated.amIn = "08:00"
             updated.amOut = "12:00"
             updated.pmIn = "01:00"
             updated.pmOut = "05:00"
             updated.location = ""
+            updated.specialNote = ""
           }
         }
 
@@ -830,18 +842,19 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                               : "rgba(124, 58, 237, 0.01)",
                           }}
                         >
-                          <TableCell />
-                          <TableCell />
-                          <TableCell colSpan={6} sx={{ py: 1.5 }}>
+                          <TableCell colSpan={8} sx={{ pt: 0, pb: 1.5, px: 2 }}>
                             <TextField
                               size="small"
-                              label="Special Case Details / Travel Instruction (e.g. 1-5 PM: Governor's Office)"
-                              placeholder="Describe what occurred during the time gap..."
+                              label="📋 Special Case Details (e.g. 1-5 PM: Governor's Office, OB Travel)"
+                              placeholder="Describe the official travel or reason for the time gap..."
                               value={log.specialNote || ""}
                               onChange={(e) => handleLogChange(log.day, "specialNote", e.target.value)}
                               fullWidth
                               variant="outlined"
-                              sx={{ input: { fontSize: "0.8rem", py: 0.5 } }}
+                              sx={{
+                                "& .MuiInputLabel-root": { fontSize: "0.78rem" },
+                                "& .MuiOutlinedInput-root": { fontSize: "0.82rem" },
+                              }}
                             />
                           </TableCell>
                         </TableRow>

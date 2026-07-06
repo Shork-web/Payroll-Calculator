@@ -1673,54 +1673,53 @@ function drawDtrCard(
         doc.setTextColor(0, 0, 0)
       } else {
         // Regular or Special day log
-        // AM Cells
-        if (log.amIn || log.amOut) {
-          doc.text(log.amIn, l1 + colW.amIn / 2, rowY + 3.6 * scaleY, { align: "center" })
-          doc.text(log.amOut, l2 + colW.amOut / 2, rowY + 3.6 * scaleY, { align: "center" })
-        } else if (log.status === "special" && log.specialNote) {
-          doc.setFont("helvetica", "bold")
-          doc.setTextColor(124, 58, 237)
-          doc.setFontSize(5.5)
-          let note = log.specialNote.toUpperCase()
-          const maxW = colW.amIn + colW.amOut - 2 * scaleX
-          while (note.length > 4 && doc.getTextWidth(note) > maxW) {
-            note = note.substring(0, note.length - 4) + "..."
-          }
-          doc.text(note, l1 + (colW.amIn + colW.amOut) / 2, rowY + 3.6 * scaleY, { align: "center" })
-          doc.setFont("helvetica", "normal")
-          doc.setFontSize(7.5)
-          doc.setTextColor(0, 0, 0)
-        }
 
-        // PM Cells
-        if (log.pmIn || log.pmOut) {
-          doc.text(log.pmIn, l3 + colW.pmIn / 2, rowY + 3.6 * scaleY, { align: "center" })
-          doc.text(log.pmOut, l4 + colW.pmOut / 2, rowY + 3.6 * scaleY, { align: "center" })
-        } else if (log.status === "special" && log.specialNote) {
-          doc.setFont("helvetica", "bold")
-          doc.setTextColor(124, 58, 237)
-          doc.setFontSize(5.5)
-          let note = log.specialNote.toUpperCase()
-          const maxW = colW.pmIn + colW.pmOut - 2 * scaleX
-          while (note.length > 4 && doc.getTextWidth(note) > maxW) {
-            note = note.substring(0, note.length - 4) + "..."
-          }
-          doc.text(note, l3 + (colW.pmIn + colW.pmOut) / 2, rowY + 3.6 * scaleY, { align: "center" })
-          doc.setFont("helvetica", "normal")
-          doc.setFontSize(7.5)
-          doc.setTextColor(0, 0, 0)
-        }
+        // Always draw times in their respective cells if present
+        if (log.amIn)  doc.text(log.amIn,  l1 + colW.amIn  / 2, rowY + 3.6 * scaleY, { align: "center" })
+        if (log.amOut) doc.text(log.amOut, l2 + colW.amOut / 2, rowY + 3.6 * scaleY, { align: "center" })
+        if (log.pmIn)  doc.text(log.pmIn,  l3 + colW.pmIn  / 2, rowY + 3.6 * scaleY, { align: "center" })
+        if (log.pmOut) doc.text(log.pmOut, l4 + colW.pmOut / 2, rowY + 3.6 * scaleY, { align: "center" })
 
-        // Late & Undertime totals
-        const totalUtMins = log.lateMinutes + log.undertimeMinutes
-        if (totalUtMins > 0) {
-          const hrs = Math.floor(totalUtMins / 60)
-          const mins = totalUtMins % 60
-          if (hrs > 0) {
-            doc.text(hrs.toString(), l5 + colW.utHrs / 2, rowY + 3.6 * scaleY, { align: "center" })
+        if (log.status === "special") {
+          // Special Case — employee is on official duty.
+          // Anchor the note to the LEFT of the first empty time column,
+          // stretching to the right edge of the card. Always left-aligned.
+          if (log.specialNote) {
+            // Find leftmost empty slot to start the note
+            const noteStartX = !log.pmOut && !log.pmIn
+              ? l3                          // both PM slots empty → start at PM IN
+              : !log.pmOut
+              ? l4                          // only PM OUT empty → start at PM OUT
+              : l5                          // all times filled → start at UT Hrs
+
+            // Right edge of card = l6 + colW.utMins
+            const noteMaxW = (l6 + colW.utMins) - noteStartX - 1.5 * scaleX
+
+            doc.setFont("helvetica", "bold")
+            doc.setTextColor(124, 58, 237)
+            doc.setFontSize(5.5)
+            let note = log.specialNote.toUpperCase()
+            while (note.length > 4 && doc.getTextWidth(note) > noteMaxW) {
+              note = note.substring(0, note.length - 4) + "..."
+            }
+            // Left-aligned: text starts at noteStartX + small left padding
+            doc.text(note, noteStartX + 1.2 * scaleX, rowY + 3.6 * scaleY)
+            doc.setFont("helvetica", "normal")
+            doc.setFontSize(7.5)
+            doc.setTextColor(0, 0, 0)
           }
-          if (mins > 0) {
-            doc.text(mins.toString(), l6 + colW.utMins / 2, rowY + 3.6 * scaleY, { align: "center" })
+        } else {
+          // Regular — draw Late & Undertime totals in UT columns
+          const totalUtMins = log.lateMinutes + log.undertimeMinutes
+          if (totalUtMins > 0) {
+            const hrs = Math.floor(totalUtMins / 60)
+            const mins = totalUtMins % 60
+            if (hrs > 0) {
+              doc.text(hrs.toString(), l5 + colW.utHrs / 2, rowY + 3.6 * scaleY, { align: "center" })
+            }
+            if (mins > 0) {
+              doc.text(mins.toString(), l6 + colW.utMins / 2, rowY + 3.6 * scaleY, { align: "center" })
+            }
           }
         }
       }
