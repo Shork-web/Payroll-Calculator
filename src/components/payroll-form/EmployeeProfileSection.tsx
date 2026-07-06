@@ -1,13 +1,19 @@
 import { useFormContext, Controller } from "react-hook-form"
-import { Box, Typography, TextField, MenuItem, useTheme } from "@mui/material"
-import { AccountBox as ProfileIcon } from "@mui/icons-material"
+import { Box, Typography, TextField, MenuItem, useTheme, Autocomplete, IconButton } from "@mui/material"
+import { AccountBox as ProfileIcon, Close as CloseIcon } from "@mui/icons-material"
 import { computeWorkingDaysInRange } from "@/lib/workingDays"
 import type { PayrollFormInput } from "@/lib/schema"
+import type { SavedEmployee } from "@/lib/db"
 
-export function EmployeeProfileSection() {
+interface EmployeeProfileSectionProps {
+  savedEmployees?: SavedEmployee[]
+  onDeleteEmployee?: ((id: string) => Promise<void>) | undefined
+}
+
+export function EmployeeProfileSection({ savedEmployees = [], onDeleteEmployee }: EmployeeProfileSectionProps) {
   const theme = useTheme()
   const mode = theme.palette.mode
-  const { register, control, watch, formState: { errors } } = useFormContext<PayrollFormInput>()
+  const { register, control, watch, setValue, formState: { errors } } = useFormContext<PayrollFormInput>()
 
   const periodStartValue = watch("periodStart")
   const periodEndValue = watch("periodEnd")
@@ -38,14 +44,85 @@ export function EmployeeProfileSection() {
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
-          <TextField
-            id="name"
-            label="Employee Name"
-            size="small"
-            fullWidth
-            error={!!errors.name?.message}
-            helperText={errors.name?.message}
-            {...register("name")}
+          <Controller
+            name="name"
+            control={control}
+            render={({ field: { ref, onChange, ...field } }) => (
+              <Autocomplete
+                {...field}
+                freeSolo
+                options={savedEmployees}
+                getOptionLabel={(option) => {
+                  if (typeof option === "string") return option
+                  return option.name
+                }}
+                onChange={(_event, value) => {
+                  if (typeof value === "string") {
+                    onChange(value)
+                  } else if (value && typeof value === "object") {
+                    onChange(value.name)
+                    // Auto-fill other fields
+                    if (value.position) setValue("position", value.position, { shouldValidate: true })
+                    if (value.monthlyRate) setValue("monthlyRate", value.monthlyRate, { shouldValidate: true })
+                    if (value.computationType) setValue("computationType", value.computationType, { shouldValidate: true })
+                    if (value.workingDays) setValue("workingDays", value.workingDays, { shouldValidate: true })
+                    if (value.signatoryName) setValue("signatoryName", value.signatoryName, { shouldValidate: true })
+                    if (value.signatoryTitle) setValue("signatoryTitle", value.signatoryTitle, { shouldValidate: true })
+                    if (value.payslipSignatoryName) setValue("payslipSignatoryName", value.payslipSignatoryName, { shouldValidate: true })
+                    if (value.payslipSignatoryTitle) setValue("payslipSignatoryTitle", value.payslipSignatoryTitle, { shouldValidate: true })
+                    if (value.payslipSignatories) setValue("payslipSignatories", value.payslipSignatories, { shouldValidate: true })
+                  } else {
+                    onChange("")
+                  }
+                }}
+                onInputChange={(_event, newInputValue) => {
+                  onChange(newInputValue)
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    inputRef={ref}
+                    id="name"
+                    label="Employee Name"
+                    size="small"
+                    fullWidth
+                    error={!!errors.name?.message}
+                    helperText={errors.name?.message}
+                  />
+                )}
+                renderOption={(props, option) => {
+                  const { key, ...optionProps } = props as React.HTMLAttributes<HTMLLIElement> & { key?: React.Key }
+                  return (
+                    <Box
+                      key={key || option.id || option.name}
+                      component="li"
+                      {...optionProps}
+                      sx={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}
+                    >
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{option.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {option.position} • ₱{option.monthlyRate.toLocaleString()}
+                        </Typography>
+                      </Box>
+                      {onDeleteEmployee && option.id && (
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={(e) => {
+                            e.stopPropagation() // Prevent selecting
+                            onDeleteEmployee(option.id)
+                          }}
+                          sx={{ p: 0.5 }}
+                        >
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                    </Box>
+                  )
+                }}
+              />
+            )}
           />
           <TextField
             id="position"

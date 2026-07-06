@@ -73,3 +73,17 @@ export interface PayrollEntry {
   inputs: PayrollInputs
   result: PayrollResult
 }
+
+export interface DtrDayLog {
+  day: number
+  dayName: string
+  amIn: string
+  amOut: string
+  pmIn: string
+  pmOut: string
+  status: "regular" | "absent" | "weekend" | "holiday" | "leave" | "ob" | "special"
+  lateMinutes: number
+  undertimeMinutes: number
+  location?: string
+  specialNote?: string
+}

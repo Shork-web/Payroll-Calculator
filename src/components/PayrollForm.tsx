@@ -88,13 +88,23 @@ const WATCHED_FIELDS = [
   "additionalTaxReason",
 ] as const
 
+import type { SavedEmployee } from "@/lib/db"
+
 export interface PayrollFormProps {
   onCompute: (result: PayrollResult, info: EmployeeInfo, inputs: PayrollInputs) => void
   onReset: () => void
   editValues?: PayrollFormInput | null
+  savedEmployees?: SavedEmployee[]
+  onDeleteEmployee?: (id: string) => Promise<void>
 }
 
-export function PayrollForm({ onCompute, onReset, editValues = null }: PayrollFormProps) {
+export function PayrollForm({
+  onCompute,
+  onReset,
+  editValues = null,
+  savedEmployees = [],
+  onDeleteEmployee,
+}: PayrollFormProps) {
   const theme = useTheme()
   const mode = theme.palette.mode
 
@@ -274,7 +284,7 @@ export function PayrollForm({ onCompute, onReset, editValues = null }: PayrollFo
 
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3, mb: 2 }}>
           <Stack spacing={3}>
-            <EmployeeProfileSection />
+            <EmployeeProfileSection savedEmployees={savedEmployees} onDeleteEmployee={onDeleteEmployee} />
             <SalaryBaseRatesSection />
             <AttendanceAdjustmentsSection />
           </Stack>

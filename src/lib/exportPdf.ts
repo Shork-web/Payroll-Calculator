@@ -1,7 +1,7 @@
 import jsPDF from "jspdf"
 
 import { formatPayPeriod } from "@/lib/format"
-import type { EmployeeInfo, PayrollInputs, PayrollResult, PayrollEntry, Signatory } from "@/types/payroll"
+import type { EmployeeInfo, PayrollInputs, PayrollResult, PayrollEntry, Signatory, DtrDayLog } from "@/types/payroll"
 
 type Doc = InstanceType<typeof jsPDF>
 
@@ -1228,5 +1228,674 @@ export async function exportBulkPayslipsPdf(entries: PayrollEntry[]): Promise<vo
   })
 
   doc.save("Bulk_Payslips.pdf")
+}
+
+export function exportAttendanceCertificatePdf(entry: PayrollEntry): void {
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4"
+  })
+
+  const { employee, inputs, result } = entry
+  const period = formatPayPeriod(inputs.periodStart, inputs.periodEnd)
+
+  const pageW = 210
+  const pageMargin = 20
+  const contentW = pageW - pageMargin * 2
+  const amountCol = pageW - pageMargin - 5
+  const RM = pageW - pageMargin
+
+  let y = 15
+
+  // 1. Header with Republic of the Philippines branding
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8)
+  doc.setTextColor(0, 0, 0)
+  doc.text("REPUBLIC OF THE PHILIPPINES", pageW / 2, y, { align: "center" })
+
+  y += 4.5
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(10.5)
+  doc.setTextColor(15, 110, 86) // PhilFIDA Emerald
+  doc.text("PHILIPPINE FIBER INDUSTRY DEVELOPMENT AUTHORITY", pageW / 2, y, { align: "center" })
+
+  y += 3
+  // Elegant double lines
+  doc.setDrawColor(15, 110, 86) // PhilFIDA Emerald
+  doc.setLineWidth(0.5)
+  doc.line(pageMargin, y, RM, y)
+  
+  y += 0.8
+  doc.setDrawColor(226, 232, 240) // Slate-200
+  doc.setLineWidth(0.2)
+  doc.line(pageMargin, y, RM, y)
+
+  y += 12
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(13)
+  doc.setTextColor(0, 0, 0)
+  doc.text("CERTIFICATION OF ATTENDANCE ADJUSTMENTS", pageW / 2, y, { align: "center" })
+
+  y += 10
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(9.5)
+  doc.setTextColor(50, 50, 50)
+  
+  const introText1 = `This is to certify that the following attendance records and salary deductions due to absences, lates, and undertimes were calculated for ${employee.name.toUpperCase()} for the pay period of ${period}.`
+  const lines = doc.splitTextToSize(introText1, contentW)
+  doc.text(lines, pageMargin, y)
+
+  y += lines.length * 5 + 8
+
+  // Rates sub-card
+  const rateBoxH = 18
+  doc.setFillColor(250, 250, 250)
+  doc.setDrawColor(226, 232, 240)
+  doc.setLineWidth(0.3)
+  doc.roundedRect(pageMargin, y, contentW, rateBoxH, 1.5, 1.5, "FD")
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(8)
+  doc.setTextColor(100, 100, 100)
+  doc.text("BASE CALCULATION RATES", pageMargin + 5, y + 5)
+  
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8.5)
+  doc.setTextColor(0, 0, 0)
+  doc.text(`Daily Rate: Php ${n(result.dailyRate)}`, pageMargin + 5, y + 11)
+  doc.text(`Hourly Rate: Php ${n(result.hourlyRate)}`, pageMargin + 65, y + 11)
+  doc.text(`Per-Minute Rate: Php ${n(result.perMinRate)}`, pageMargin + 125, y + 11)
+
+  y += rateBoxH + 10
+
+  // 2. Incident logs table
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(9)
+  doc.setTextColor(15, 110, 86)
+  doc.text("ITEMIZED ADJUSTMENT LOG", pageMargin, y)
+
+  y += 4
+
+  // Table header
+  doc.setFillColor(241, 245, 249) // light slate
+  doc.rect(pageMargin, y, contentW, 7, "F")
+  doc.setDrawColor(203, 213, 225)
+  doc.setLineWidth(0.2)
+  doc.line(pageMargin, y, RM, y)
+  doc.line(pageMargin, y + 7, RM, y + 7)
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(8)
+  doc.setTextColor(51, 65, 85)
+  doc.text("Date", pageMargin + 4, y + 4.8)
+  doc.text("Incident Type", pageMargin + 40, y + 4.8)
+  doc.text("Duration", pageMargin + 95, y + 4.8)
+  doc.text("Equivalent Deduction", amountCol - 4, y + 4.8, { align: "right" })
+
+  y += 7
+
+  const incidents = inputs.lateIncidents || []
+  let hasIncidents = false
+
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8.5)
+  doc.setTextColor(0, 0, 0)
+
+  incidents.forEach((item) => {
+    const isLate = item.type === "late" || !item.type
+    const isUndertime = item.type === "undertime"
+    const isAbsent = item.type === "absent"
+
+    const minutes = Number(item.minutes) || 0
+    const days = Number(item.days) || 0
+
+    if (item.date?.trim() && ((!isAbsent && minutes > 0) || (isAbsent && days > 0))) {
+      hasIncidents = true
+
+      let deductionText = ""
+      let durationText = ""
+      let typeText = ""
+
+      if (isAbsent) {
+        typeText = "Absence"
+        durationText = `${days} day${days > 1 ? "s" : ""}`
+        deductionText = `Php ${n(days * result.dailyRate)}`
+      } else if (isLate) {
+        typeText = "Tardiness (Late)"
+        durationText = `${minutes} min${minutes > 1 ? "s" : ""}`
+        deductionText = `Php ${n(minutes * result.perMinRate)}`
+      } else if (isUndertime) {
+        typeText = "Undertime"
+        durationText = `${minutes} min${minutes > 1 ? "s" : ""}`
+        deductionText = `Php ${n(minutes * result.perMinRate)}`
+      }
+
+      doc.text(item.date, pageMargin + 4, y + 5)
+      doc.text(typeText, pageMargin + 40, y + 5)
+      doc.text(durationText, pageMargin + 95, y + 5)
+      doc.text(deductionText, amountCol - 4, y + 5, { align: "right" })
+
+      y += 8.5
+      doc.line(pageMargin, y - 1, RM, y - 1)
+    }
+  })
+
+  if (!hasIncidents) {
+    doc.text("No lates, undertimes, or absences recorded. (Perfect Attendance)", pageMargin + 4, y + 5)
+    y += 8.5
+    doc.line(pageMargin, y - 1, RM, y - 1)
+  }
+
+  // Summary Row
+  y += 2
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(9)
+  doc.text("Total Deductions for Period", pageMargin + 4, y + 4)
+
+  const totalDeductions = result.absentDeduction + result.lateDeduction + result.undertimeDeduction
+  doc.text(`Php ${n(totalDeductions)}`, amountCol - 4, y + 4, { align: "right" })
+  
+  y += 7.5
+  doc.line(pageMargin, y, RM, y)
+
+  y += 18
+
+  // Certification statement
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(9)
+  doc.setTextColor(50, 50, 50)
+  doc.text("This certification is issued for internal administrative and auditing purposes.", pageMargin, y)
+
+  y += 25
+
+  // Signature Block
+  const sigW = Math.min(70, (contentW - 15) / 2)
+  const employeeLineX = pageMargin
+  const certifiedLineX = RM - sigW
+
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8)
+  doc.setTextColor(100, 100, 100)
+  
+  doc.text("Conforme / Received by:", employeeLineX, y)
+  doc.text("Certified Correct:", certifiedLineX, y)
+
+  y += 12
+  doc.setDrawColor(200, 200, 200)
+  doc.line(employeeLineX, y, employeeLineX + sigW, y)
+  doc.line(certifiedLineX, y, certifiedLineX + sigW, y)
+
+  y += 4
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(8.5)
+  doc.setTextColor(0, 0, 0)
+  doc.text(employee.name.toUpperCase(), employeeLineX, y)
+  
+  const officerName = employee.payslipSignatoryName || employee.signatoryName || "Authorized Officer"
+  doc.text(officerName.toUpperCase(), certifiedLineX, y)
+
+  y += 3.5
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8)
+  doc.setTextColor(120, 120, 120)
+  doc.text("Employee Signature", employeeLineX, y)
+
+  const officerTitle = employee.payslipSignatoryTitle || employee.signatoryTitle || "Payroll Officer"
+  doc.text(officerTitle, certifiedLineX, y)
+
+  doc.save(`${employee.name.replace(/\s+/g, "_")}_Attendance_Log.pdf`)
+}
+
+function drawDtrCard(
+  doc: Doc,
+  startX: number,
+  employeeName: string,
+  monthYearLabel: string,
+  daysList: DtrDayLog[],
+  supervisorName: string,
+  supervisorTitle: string,
+  cutoffPeriod: "1st-half" | "2nd-half" | "full-month",
+  dtrNo: string,
+  designation: string,
+  department: string,
+  timeScheduleFrom: string,
+  timeScheduleTo: string,
+  periodFromLabel: string,
+  periodToLabel: string,
+  cardW: number,
+  scaleX: number,
+  scaleY: number
+) {
+  const margin = startX
+  const RM = margin + cardW
+  const center = margin + cardW / 2
+
+  let y = 12 * scaleY
+
+  // Header
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(7.5)
+  doc.setTextColor(0, 0, 0)
+  doc.text("Civil Service Form No. 48", margin, y)
+
+  y += 4.5 * scaleY
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(11)
+  doc.text("DAILY TIME RECORD", center, y, { align: "center" })
+
+  y += 6.5 * scaleY
+  // NO. field (row 1 left)
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8.5)
+  doc.text("NO.", margin, y)
+  doc.setFont("helvetica", "bold")
+  doc.text(dtrNo, margin + 8 * scaleX, y)
+  doc.setDrawColor(180, 180, 180)
+  doc.setLineWidth(0.2)
+  doc.line(margin + 8 * scaleX, y + 0.6 * scaleY, margin + cardW * 0.45, y + 0.6 * scaleY)
+
+  // NAME: field (row 2)
+  y += 5.5 * scaleY
+  doc.setFont("helvetica", "normal")
+  doc.text("NAME:", margin, y)
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(9)
+  doc.text(employeeName.toUpperCase(), margin + 12 * scaleX, y - 0.2 * scaleY)
+  doc.line(margin + 12 * scaleX, y + 0.6 * scaleY, RM, y + 0.6 * scaleY)
+
+  // DESIGNATION: field (row 3)
+  y += 5.5 * scaleY
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8.5)
+  doc.text("DESIGNATION:", margin, y)
+  doc.setFont("helvetica", "normal")
+  doc.text(designation, margin + 24 * scaleX, y - 0.2 * scaleY)
+  doc.line(margin + 24 * scaleX, y + 0.6 * scaleY, RM, y + 0.6 * scaleY)
+
+  // DEPARTMENT: field (row 4)
+  y += 6.5 * scaleY
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(9)
+  doc.text(department.toUpperCase(), center, y - 0.2 * scaleY, { align: "center" })
+  doc.line(margin, y + 0.6 * scaleY, RM, y + 0.6 * scaleY)
+  
+  y += 3.5 * scaleY
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8.5)
+  doc.text("DEPARTMENT", center, y, { align: "center" })
+
+  // PERIOD: FROM [Start] TO [End] (row 5)
+  y += 6 * scaleY
+  doc.text("PERIOD", margin, y)
+  doc.text("FROM", margin + 15 * scaleX, y)
+  doc.setFont("helvetica", "bold")
+  doc.text(periodFromLabel.toUpperCase(), margin + 26 * scaleX, y)
+  doc.line(margin + 26 * scaleX, y + 0.6 * scaleY, margin + cardW * 0.55, y + 0.6 * scaleY)
+
+  doc.setFont("helvetica", "normal")
+  doc.text("TO", margin + 54 * scaleX, y)
+  doc.setFont("helvetica", "bold")
+  doc.text(periodToLabel.toUpperCase(), margin + 61 * scaleX, y)
+  doc.line(margin + 61 * scaleX, y + 0.6 * scaleY, RM, y + 0.6 * scaleY)
+
+  // TIME SCHEDULE: FROM [From] TO [To] (row 6)
+  y += 6 * scaleY
+  doc.setFont("helvetica", "normal")
+  doc.text("TIME", margin, y)
+  y += 3 * scaleY
+  doc.text("SCHEDULE", margin, y)
+
+  doc.text("FROM", margin + 18 * scaleX, y)
+  doc.setFont("helvetica", "bold")
+  doc.text(timeScheduleFrom, margin + 29 * scaleX, y)
+  doc.line(margin + 29 * scaleX, y + 0.6 * scaleY, margin + cardW * 0.58, y + 0.6 * scaleY)
+
+  doc.setFont("helvetica", "normal")
+  doc.text("TO", margin + 55 * scaleX, y)
+  doc.setFont("helvetica", "bold")
+  doc.text(timeScheduleTo, margin + 61 * scaleX, y)
+  doc.line(margin + 61 * scaleX, y + 0.6 * scaleY, RM, y + 0.6 * scaleY)
+
+  y += 6.5 * scaleY
+
+  // Table Grid
+  const rowH = 5.2 * scaleY
+  const colW = {
+    day: cardW * 0.09,
+    amIn: cardW * 0.15,
+    amOut: cardW * 0.15,
+    pmIn: cardW * 0.15,
+    pmOut: cardW * 0.15,
+    utHrs: cardW * 0.155,
+    utMins: cardW * 0.155,
+  }
+
+  const tableY = y
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(8)
+  doc.setFillColor(245, 245, 245)
+  doc.rect(margin, tableY, cardW, rowH * 2, "F")
+  doc.setDrawColor(150, 150, 150)
+  doc.rect(margin, tableY, cardW, rowH * 2)
+
+  // Table Header Borders & Labels
+  const l1 = margin + colW.day
+  const l2 = l1 + colW.amIn
+  const l3 = l2 + colW.amOut
+  const l4 = l3 + colW.pmIn
+  const l5 = l4 + colW.pmOut
+  const l6 = l5 + colW.utHrs
+
+  // Draw vertical header lines
+  doc.line(l1, tableY, l1, tableY + rowH * 2)
+  doc.line(l2, tableY + rowH, l2, tableY + rowH * 2)
+  doc.line(l3, tableY, l3, tableY + rowH * 2)
+  doc.line(l4, tableY + rowH, l4, tableY + rowH * 2)
+  doc.line(l5, tableY, l5, tableY + rowH * 2)
+  doc.line(l6, tableY + rowH, l6, tableY + rowH * 2)
+
+  // Horizontal inner header line
+  doc.line(l1, tableY + rowH, l5, tableY + rowH)
+  doc.line(l5, tableY + rowH, RM, tableY + rowH)
+
+  // Header labels
+  doc.text("DAY", margin + colW.day / 2, tableY + 6.5 * scaleY, { align: "center" })
+  doc.text("A. M.", l1 + (colW.amIn + colW.amOut) / 2, tableY + 3.2 * scaleY, { align: "center" })
+  doc.text("Arrival", l1 + colW.amIn / 2, tableY + 7.8 * scaleY, { align: "center" })
+  doc.text("Departure", l2 + colW.amOut / 2, tableY + 7.8 * scaleY, { align: "center" })
+
+  doc.text("P. M.", l3 + (colW.pmIn + colW.pmOut) / 2, tableY + 3.2 * scaleY, { align: "center" })
+  doc.text("Arrival", l3 + colW.pmIn / 2, tableY + 7.8 * scaleY, { align: "center" })
+  doc.text("Departure", l4 + colW.pmOut / 2, tableY + 7.8 * scaleY, { align: "center" })
+
+  doc.text("UNDERTIME / LATE", l5 + (colW.utHrs + colW.utMins) / 2, tableY + 3.2 * scaleY, { align: "center" })
+  doc.text("Hours", l5 + colW.utHrs / 2, tableY + 7.8 * scaleY, { align: "center" })
+  doc.text("Minutes", l6 + colW.utMins / 2, tableY + 7.8 * scaleY, { align: "center" })
+
+  let rowY = tableY + rowH * 2
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(7.5)
+
+  // Draw days (fixed to 31 rows)
+  for (let d = 1; d <= 31; d++) {
+    const log = daysList.find((l) => l.day === d)
+    doc.rect(margin, rowY, cardW, rowH)
+
+    // Day number
+    doc.setFont("helvetica", "bold")
+    doc.text(d.toString(), margin + colW.day / 2, rowY + 3.6 * scaleY, { align: "center" })
+    doc.setFont("helvetica", "normal")
+
+    const inRange =
+      cutoffPeriod === "full-month" ||
+      (cutoffPeriod === "1st-half" && d <= 15) ||
+      (cutoffPeriod === "2nd-half" && d >= 16)
+
+    if (log && inRange && d <= daysList.length) {
+      if (log.status === "weekend") {
+        doc.setFont("helvetica", "bold")
+        doc.setTextColor(120, 120, 120)
+        doc.text(log.dayName.toUpperCase(), l1 + 1.5 * scaleX, rowY + 3.6 * scaleY)
+        doc.setFont("helvetica", "normal")
+        doc.setTextColor(0, 0, 0)
+      } else if (log.status === "holiday") {
+        doc.setFont("helvetica", "bold")
+        doc.setTextColor(185, 28, 28)
+        doc.text("HOLIDAY", l1 + 1.5 * scaleX, rowY + 3.6 * scaleY)
+        doc.setFont("helvetica", "normal")
+        doc.setTextColor(0, 0, 0)
+      } else if (log.status === "absent") {
+        doc.setFont("helvetica", "bold")
+        doc.setTextColor(185, 28, 28)
+        doc.text("ABSENT", l1 + 1.5 * scaleX, rowY + 3.6 * scaleY)
+        doc.setFont("helvetica", "normal")
+        doc.setTextColor(0, 0, 0)
+      } else if (log.status === "leave") {
+        doc.setFont("helvetica", "bold")
+        doc.setTextColor(59, 130, 246)
+        doc.text("LEAVE", l1 + 1.5 * scaleX, rowY + 3.6 * scaleY)
+        doc.setFont("helvetica", "normal")
+        doc.setTextColor(0, 0, 0)
+      } else if (log.status === "ob") {
+        doc.setFont("helvetica", "bold")
+        doc.setTextColor(16, 185, 129)
+        const locationText = log.location ? ` - ${log.location.toUpperCase()}` : ""
+        let rawLabel = `OB${locationText}`
+        const maxTextW = colW.amIn + colW.amOut + colW.pmIn + colW.pmOut - 3 * scaleX
+        doc.setFontSize(6)
+        while (rawLabel.length > 4 && doc.getTextWidth(rawLabel) > maxTextW) {
+          rawLabel = rawLabel.substring(0, rawLabel.length - 4) + "..."
+        }
+        doc.text(rawLabel, l1 + 1.5 * scaleX, rowY + 3.6 * scaleY)
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(7.5)
+        doc.setTextColor(0, 0, 0)
+      } else {
+        // Regular or Special day log
+        // AM Cells
+        if (log.amIn || log.amOut) {
+          doc.text(log.amIn, l1 + colW.amIn / 2, rowY + 3.6 * scaleY, { align: "center" })
+          doc.text(log.amOut, l2 + colW.amOut / 2, rowY + 3.6 * scaleY, { align: "center" })
+        } else if (log.status === "special" && log.specialNote) {
+          doc.setFont("helvetica", "bold")
+          doc.setTextColor(124, 58, 237)
+          doc.setFontSize(5.5)
+          let note = log.specialNote.toUpperCase()
+          const maxW = colW.amIn + colW.amOut - 2 * scaleX
+          while (note.length > 4 && doc.getTextWidth(note) > maxW) {
+            note = note.substring(0, note.length - 4) + "..."
+          }
+          doc.text(note, l1 + (colW.amIn + colW.amOut) / 2, rowY + 3.6 * scaleY, { align: "center" })
+          doc.setFont("helvetica", "normal")
+          doc.setFontSize(7.5)
+          doc.setTextColor(0, 0, 0)
+        }
+
+        // PM Cells
+        if (log.pmIn || log.pmOut) {
+          doc.text(log.pmIn, l3 + colW.pmIn / 2, rowY + 3.6 * scaleY, { align: "center" })
+          doc.text(log.pmOut, l4 + colW.pmOut / 2, rowY + 3.6 * scaleY, { align: "center" })
+        } else if (log.status === "special" && log.specialNote) {
+          doc.setFont("helvetica", "bold")
+          doc.setTextColor(124, 58, 237)
+          doc.setFontSize(5.5)
+          let note = log.specialNote.toUpperCase()
+          const maxW = colW.pmIn + colW.pmOut - 2 * scaleX
+          while (note.length > 4 && doc.getTextWidth(note) > maxW) {
+            note = note.substring(0, note.length - 4) + "..."
+          }
+          doc.text(note, l3 + (colW.pmIn + colW.pmOut) / 2, rowY + 3.6 * scaleY, { align: "center" })
+          doc.setFont("helvetica", "normal")
+          doc.setFontSize(7.5)
+          doc.setTextColor(0, 0, 0)
+        }
+
+        // Late & Undertime totals
+        const totalUtMins = log.lateMinutes + log.undertimeMinutes
+        if (totalUtMins > 0) {
+          const hrs = Math.floor(totalUtMins / 60)
+          const mins = totalUtMins % 60
+          if (hrs > 0) {
+            doc.text(hrs.toString(), l5 + colW.utHrs / 2, rowY + 3.6 * scaleY, { align: "center" })
+          }
+          if (mins > 0) {
+            doc.text(mins.toString(), l6 + colW.utMins / 2, rowY + 3.6 * scaleY, { align: "center" })
+          }
+        }
+      }
+    }
+
+    rowY += rowH
+  }
+
+  y = rowY + 3.5 * scaleY
+
+  // Summary Totals
+  const activeDaysList = daysList.filter(
+    (log) =>
+      cutoffPeriod === "full-month" ||
+      (cutoffPeriod === "1st-half" && log.day <= 15) ||
+      (cutoffPeriod === "2nd-half" && log.day >= 16)
+  )
+  const totalLateUt = activeDaysList.reduce((sum, item) => sum + item.lateMinutes + item.undertimeMinutes, 0)
+  const totalHrs = Math.floor(totalLateUt / 60)
+  const totalMins = totalLateUt % 60
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(8)
+  doc.text("Total Undertimes / Lates for the Month:", margin, y)
+  if (totalHrs > 0) {
+    doc.text(`${totalHrs} Hrs`, l5 + colW.utHrs / 2, y, { align: "center" })
+  }
+  if (totalMins > 0) {
+    doc.text(`${totalMins} Mins`, l6 + colW.utMins / 2, y, { align: "center" })
+  }
+
+  y += 5.5 * scaleY
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(7)
+  const certText = "I CERTIFY on my honor that the above is a true and correct report of the hours of work performed, record of which was made daily at the time of arrival and departure from office."
+  const certLines = doc.splitTextToSize(certText, cardW)
+  doc.text(certLines, margin, y)
+
+  y += certLines.length * 3.3 * scaleY + 6 * scaleY
+  // Employee Signature Line
+  doc.setDrawColor(200, 200, 200)
+  doc.line(margin + 5 * scaleX, y, RM - 5 * scaleX, y)
+  y += 4 * scaleY
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(8.5)
+  doc.text(employeeName.toUpperCase(), center, y - 0.5 * scaleY, { align: "center" })
+  y += 3 * scaleY
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8)
+  doc.text("Signature of Employee", center, y, { align: "center" })
+
+  y += 10 * scaleY
+  // Supervisor Certification
+  doc.text("Verified as to the prescribed office hours:", margin, y)
+  y += 8 * scaleY
+  doc.line(margin + 5 * scaleX, y, RM - 5 * scaleX, y)
+  
+  y += 4.5 * scaleY
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(8.5)
+  doc.text((supervisorName || "Supervisor In-Charge").toUpperCase(), center, y - 0.5 * scaleY, { align: "center" })
+  
+  y += 3 * scaleY
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8)
+  doc.text(supervisorTitle || "In-Charge / Supervisor", center, y, { align: "center" })
+}
+
+export function exportDtrPdf(
+  employeeName: string,
+  monthYearLabel: string,
+  daysList: DtrDayLog[],
+  supervisorName: string,
+  supervisorTitle: string,
+  cutoffPeriod: "1st-half" | "2nd-half" | "full-month",
+  dtrNo: string,
+  designation: string,
+  department: string,
+  timeScheduleFrom: string,
+  timeScheduleTo: string,
+  monthLabel: string,
+  yearNum: number,
+  paperSize: "a4" | "letter" | "legal" = "a4"
+): void {
+  let formatArg: string | number[] = "a4"
+  if (paperSize === "letter") {
+    formatArg = "letter"
+  } else if (paperSize === "legal") {
+    formatArg = [215.9, 330.2] // Folio Long in mm
+  }
+
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: formatArg
+  })
+
+  const pageW = doc.internal.pageSize.getWidth()
+  const pageH = doc.internal.pageSize.getHeight()
+
+  const scaleX = pageW / 210
+  const scaleY = pageH / 297
+
+  const centerX = pageW / 2
+  // Maximize card footprint by reducing default left/right margins to 6mm
+  const leftMargin = 6 * scaleX
+  const cardW = centerX - leftMargin - 4 * scaleX
+
+  // Compute period labels
+  const daysInMonth = daysList.length
+  
+  let periodFromLabel = ""
+  let periodToLabel = ""
+
+  if (cutoffPeriod === "1st-half") {
+    periodFromLabel = `${monthLabel} 1, ${yearNum}`
+    periodToLabel = `${monthLabel} 15, ${yearNum}`
+  } else if (cutoffPeriod === "2nd-half") {
+    periodFromLabel = `${monthLabel} 16, ${yearNum}`
+    periodToLabel = `${monthLabel} ${daysInMonth}, ${yearNum}`
+  } else {
+    periodFromLabel = `${monthLabel} 1, ${yearNum}`
+    periodToLabel = `${monthLabel} ${daysInMonth}, ${yearNum}`
+  }
+
+  // Draw copy 1 on left side
+  drawDtrCard(
+    doc,
+    leftMargin,
+    employeeName,
+    monthYearLabel,
+    daysList,
+    supervisorName,
+    supervisorTitle,
+    cutoffPeriod,
+    dtrNo,
+    designation,
+    department,
+    timeScheduleFrom,
+    timeScheduleTo,
+    periodFromLabel,
+    periodToLabel,
+    cardW,
+    scaleX,
+    scaleY
+  )
+
+  // Draw copy 2 on right side
+  drawDtrCard(
+    doc,
+    centerX + 4 * scaleX,
+    employeeName,
+    monthYearLabel,
+    daysList,
+    supervisorName,
+    supervisorTitle,
+    cutoffPeriod,
+    dtrNo,
+    designation,
+    department,
+    timeScheduleFrom,
+    timeScheduleTo,
+    periodFromLabel,
+    periodToLabel,
+    cardW,
+    scaleX,
+    scaleY
+  )
+
+  // Draw a dotted vertical line down the center to show where to cut/fold!
+  doc.setDrawColor(180, 180, 180)
+  doc.setLineWidth(0.2)
+  doc.setLineDashPattern([2, 2], 0)
+  doc.line(centerX, 10 * scaleY, centerX, pageH - 10 * scaleY)
+
+  doc.save(`${employeeName.replace(/\s+/g, "_")}_DTR.pdf`)
 }
 
