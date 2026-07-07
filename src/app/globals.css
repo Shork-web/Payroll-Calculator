@@ -16,6 +16,15 @@ body {
   min-height: 100vh;
 }
 
+/* Hide scrollbar globally for a cleaner, unified UI */
+::-webkit-scrollbar {
+  display: none !important;
+}
+html, body, * {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+
 .print-only {
   display: none;
 }

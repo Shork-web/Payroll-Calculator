@@ -1471,6 +1471,24 @@ function drawDtrCard(
   const RM = margin + cardW
   const center = margin + cardW / 2
 
+  const LEAVE_NAMES_MAP: Record<string, string> = {
+    vl: "Vacation Leave",
+    fl: "Forced / Mandatory Leave",
+    sl: "Sick Leave",
+    ml: "Maternity Leave",
+    pl: "Paternity Leave",
+    spl: "Solo Parent Leave",
+    mc: "Special Leave Benefits for Women (Magna Carta)",
+    vawc: "VAWC Leave",
+    slp: "Special Leave Privileges",
+    wl: "Wellness Leave",
+    sel: "Special Emergency Leave",
+    rl: "Rehabilitation Leave",
+    stl: "Study Leave",
+    cto: "Compensatory Time-Off",
+    wlcos: "Wellness Leave - COS",
+  }
+
   let y = 12 * scaleY
 
   // Header
@@ -1636,26 +1654,41 @@ function drawDtrCard(
       if (log.status === "weekend") {
         doc.setFont("helvetica", "bold")
         doc.setTextColor(120, 120, 120)
-        doc.text(log.dayName.toUpperCase(), l1 + 1.5 * scaleX, rowY + 3.6 * scaleY)
+        doc.text(log.dayName.toUpperCase(), l1 + (l5 - l1) / 2, rowY + 3.6 * scaleY, { align: "center" })
         doc.setFont("helvetica", "normal")
         doc.setTextColor(0, 0, 0)
       } else if (log.status === "holiday") {
         doc.setFont("helvetica", "bold")
         doc.setTextColor(185, 28, 28)
-        doc.text("HOLIDAY", l1 + 1.5 * scaleX, rowY + 3.6 * scaleY)
+        doc.text("HOLIDAY", l1 + (l5 - l1) / 2, rowY + 3.6 * scaleY, { align: "center" })
         doc.setFont("helvetica", "normal")
         doc.setTextColor(0, 0, 0)
       } else if (log.status === "absent") {
         doc.setFont("helvetica", "bold")
         doc.setTextColor(185, 28, 28)
-        doc.text("ABSENT", l1 + 1.5 * scaleX, rowY + 3.6 * scaleY)
+        doc.text("ABSENT", l1 + (l5 - l1) / 2, rowY + 3.6 * scaleY, { align: "center" })
         doc.setFont("helvetica", "normal")
         doc.setTextColor(0, 0, 0)
-      } else if (log.status === "leave") {
+      } else if (log.status === "leave" || log.status.startsWith("leave-")) {
         doc.setFont("helvetica", "bold")
         doc.setTextColor(59, 130, 246)
-        doc.text("LEAVE", l1 + 1.5 * scaleX, rowY + 3.6 * scaleY)
+        let label = "LEAVE"
+        if (log.status.startsWith("leave-")) {
+          const key = log.status.substring(6)
+          label = LEAVE_NAMES_MAP[key] ? LEAVE_NAMES_MAP[key].toUpperCase() : key.toUpperCase()
+        }
+        
+        const maxTextW = l5 - l1 - 3 * scaleX
+        let currentFontSize = 7.5
+        doc.setFontSize(currentFontSize)
+        while (currentFontSize > 4.5 && doc.getTextWidth(label) > maxTextW) {
+          currentFontSize -= 0.5
+          doc.setFontSize(currentFontSize)
+        }
+        
+        doc.text(label, l1 + (l5 - l1) / 2, rowY + 3.6 * scaleY, { align: "center" })
         doc.setFont("helvetica", "normal")
+        doc.setFontSize(7.5)
         doc.setTextColor(0, 0, 0)
       } else if (log.status === "ob") {
         doc.setFont("helvetica", "bold")
@@ -1667,7 +1700,7 @@ function drawDtrCard(
         while (rawLabel.length > 4 && doc.getTextWidth(rawLabel) > maxTextW) {
           rawLabel = rawLabel.substring(0, rawLabel.length - 4) + "..."
         }
-        doc.text(rawLabel, l1 + 1.5 * scaleX, rowY + 3.6 * scaleY)
+        doc.text(rawLabel, l1 + (l5 - l1) / 2, rowY + 3.6 * scaleY, { align: "center" })
         doc.setFont("helvetica", "normal")
         doc.setFontSize(7.5)
         doc.setTextColor(0, 0, 0)

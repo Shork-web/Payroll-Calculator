@@ -21,11 +21,15 @@ import {
   Chip,
   Card,
   CardContent,
+  InputAdornment,
+  ListSubheader,
 } from "@mui/material"
 import {
   PictureAsPdf as PdfIcon,
   Send as SendIcon,
   Autorenew as FillIcon,
+  Search as SearchIcon,
+  MenuBook as BookIcon,
 } from "@mui/icons-material"
 
 import { exportDtrPdf } from "@/lib/exportPdf"
@@ -69,6 +73,124 @@ function parseTimeToMinutes(t: string, isPm = false): number {
   return h * 60 + m
 }
 
+interface LeaveLegendItem {
+  code: string
+  name: string
+  category: "regular" | "family" | "special" | "cos"
+  description: string
+}
+
+const LEAVE_LEGEND_ITEMS: LeaveLegendItem[] = [
+  {
+    code: "VL",
+    name: "Vacation Leave",
+    category: "regular",
+    description: "15 days per year (accumulates at 1.25 days/month) for personal trips and rest. Unused days roll over indefinitely."
+  },
+  {
+    code: "FL",
+    name: "Forced / Mandatory Leave",
+    category: "regular",
+    description: "5 days required annually if you have 10 or more VL days accumulated. Deducted from your VL balance; if not taken, these 5 days are forfeited."
+  },
+  {
+    code: "SL",
+    name: "Sick Leave",
+    category: "regular",
+    description: "15 days per year (accumulates at 1.25 days/month) for medical illnesses or medical appointments. Unused days roll over indefinitely and can be monetized at retirement."
+  },
+  {
+    code: "ML",
+    name: "Maternity Leave",
+    category: "family",
+    description: "105 days of fully paid leave for female employees for every instance of live birth, abortion, or miscarriage. Adoptive mothers can claim 60 days if the child is under 7 years old."
+  },
+  {
+    code: "PL",
+    name: "Paternity Leave",
+    category: "family",
+    description: "7 days of paid leave for married male employees to support their legitimate spouse for the first four deliveries or miscarriages."
+  },
+  {
+    code: "SPL",
+    name: "Solo Parent Leave",
+    category: "family",
+    description: "7 working days of paid leave annually for single parents to attend to parental duties, available after 6 months of service."
+  },
+  {
+    code: "MC",
+    name: "Special Leave Benefits for Women (Magna Carta)",
+    category: "special",
+    description: "Up to 2 months (60 days) of fully paid leave for recovery after surgery due to gynecological disorders."
+  },
+  {
+    code: "VAWC",
+    name: "VAWC Leave",
+    category: "special",
+    description: "Up to 10 days of paid leave for female employees who are victims of violence against women and children, used to attend to medical and legal matters."
+  },
+  {
+    code: "SLP",
+    name: "Special Leave Privileges (SLP)",
+    category: "regular",
+    description: "3 days per year for personal milestones (birthdays, anniversaries, graduations) or domestic emergencies. Non-cumulative."
+  },
+  {
+    code: "WL",
+    name: "Wellness Leave",
+    category: "special",
+    description: "Up to 5 days per year specifically for mental health, physical wellness, and medical checkups (separate from standard VL/SL)."
+  },
+  {
+    code: "SEL",
+    name: "Special Emergency Leave (SEL)",
+    category: "special",
+    description: "Up to 5 days of paid leave if you are directly affected by a natural disaster or calamity (typhoon, flood, earthquake) when your area is declared under a State of Calamity."
+  },
+  {
+    code: "RL",
+    name: "Rehabilitation Leave",
+    category: "special",
+    description: "Up to 6 months of paid leave for employees who sustain injuries or wounds while performing their official duties."
+  },
+  {
+    code: "STL",
+    name: "Study Leave",
+    category: "special",
+    description: "Up to 6 months of paid leave for qualified employees to prepare for board/bar exams or complete a master’s or doctorate thesis."
+  },
+  {
+    code: "CTO",
+    name: "Compensatory Time-Off (CTO) for COS",
+    category: "cos",
+    description: "Compensatory time-off privileges for Contract of Service (COS) employees in lieu of overtime pay."
+  },
+  {
+    code: "Wellness Leave - COS",
+    name: "Wellness Leave for COS",
+    category: "cos",
+    description: "Wellness leave privileges allocated specifically for Contract of Service (COS) employees."
+  }
+]
+
+const LEAVE_NAMES_MAP: Record<string, string> = {
+  vl: "Vacation Leave",
+  fl: "Forced / Mandatory Leave",
+  sl: "Sick Leave",
+  ml: "Maternity Leave",
+  pl: "Paternity Leave",
+  spl: "Solo Parent Leave",
+  mc: "Special Leave Benefits for Women (Magna Carta)",
+  vawc: "VAWC Leave",
+  slp: "Special Leave Privileges",
+  wl: "Wellness Leave",
+  sel: "Special Emergency Leave",
+  rl: "Rehabilitation Leave",
+  stl: "Study Leave",
+  cto: "Compensatory Time-Off",
+  wlcos: "Wellness Leave - COS",
+}
+
 export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps) {
   const theme = useTheme()
   const mode = theme.palette.mode
@@ -80,6 +202,9 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("")
   const [supervisorName, setSupervisorName] = useState<string>("")
   const [supervisorTitle, setSupervisorTitle] = useState<string>("")
+
+  const [searchQuery, setSearchQuery] = useState<string>("")
+  const [selectedCategory, setSelectedCategory] = useState<"all" | "regular" | "family" | "special" | "cos">("all")
 
   // Custom Form 48 Headers (matching reference image)
   const [cutoffPeriod, setCutoffPeriod] = useState<"1st-half" | "2nd-half" | "full-month">("full-month")
@@ -275,7 +400,7 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
 
         // Handle status change side effects
         if (field === "status") {
-          if (value === "weekend" || value === "holiday" || value === "absent" || value === "leave" || value === "ob") {
+          if (value === "weekend" || value === "holiday" || value === "absent" || value === "leave" || value === "ob" || value.startsWith("leave-")) {
             // Non-working statuses — clear all time fields
             updated.amIn = ""
             updated.amOut = ""
@@ -365,6 +490,18 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
       return true
     })
   }, [days, cutoffPeriod])
+
+  const filteredLeaveItems = useMemo(() => {
+    return LEAVE_LEGEND_ITEMS.filter((item) => {
+      const matchesCategory = selectedCategory === "all" || item.category === selectedCategory
+      const query = searchQuery.toLowerCase().trim()
+      const matchesSearch =
+        item.name.toLowerCase().includes(query) ||
+        item.code.toLowerCase().includes(query) ||
+        item.description.toLowerCase().includes(query)
+      return matchesCategory && matchesSearch
+    })
+  }, [searchQuery, selectedCategory])
 
   // Get active month label name
   const monthLabel = MONTHS.find((m) => m.value === month)?.label || "Month"
@@ -741,6 +878,11 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
               border: 1,
               borderColor: "divider",
               borderRadius: 2,
+              msOverflowStyle: "none",
+              scrollbarWidth: "none",
+              "&::-webkit-scrollbar": {
+                display: "none",
+              },
             }}
           >
             <Table size="small" stickyHeader>
@@ -796,20 +938,54 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                             slotProps={{ input: { disableUnderline: true } }}
                             sx={{ fontSize: "0.8rem" }}
                           >
+                            <ListSubheader disableSticky sx={{ px: 2, fontWeight: 800, color: "primary.main", fontSize: "0.68rem", textTransform: "uppercase", lineHeight: "2.2", bgcolor: "background.paper" }}>
+                              Attendance & Travel
+                            </ListSubheader>
                             <MenuItem value="regular">Regular Work</MenuItem>
                             <MenuItem value="weekend">Weekend</MenuItem>
                             <MenuItem value="holiday">Holiday</MenuItem>
                             <MenuItem value="absent">Absent</MenuItem>
-                            <MenuItem value="leave">Leave</MenuItem>
                             <MenuItem value="ob">Official Business (OB)</MenuItem>
                             <MenuItem value="special">Special Case (OB Partial)</MenuItem>
+
+                            <ListSubheader disableSticky sx={{ px: 2, fontWeight: 800, color: "primary.main", fontSize: "0.68rem", textTransform: "uppercase", lineHeight: "2.2", bgcolor: "background.paper" }}>
+                              Plantilla / Permanent Leaves
+                            </ListSubheader>
+                            <MenuItem value="leave">General Leave</MenuItem>
+                            <MenuItem value="leave-vl">Vacation Leave</MenuItem>
+                            <MenuItem value="leave-fl">Forced / Mandatory Leave</MenuItem>
+                            <MenuItem value="leave-sl">Sick Leave</MenuItem>
+                            <MenuItem value="leave-slp">Special Leave Privileges</MenuItem>
+
+                            <ListSubheader disableSticky sx={{ px: 2, fontWeight: 800, color: "primary.main", fontSize: "0.68rem", textTransform: "uppercase", lineHeight: "2.2", bgcolor: "background.paper" }}>
+                              Special Welfare Leaves
+                            </ListSubheader>
+                            <MenuItem value="leave-ml">Maternity Leave</MenuItem>
+                            <MenuItem value="leave-pl">Paternity Leave</MenuItem>
+                            <MenuItem value="leave-spl">Solo Parent Leave</MenuItem>
+                            <MenuItem value="leave-mc">Special Leave Benefits for Women (Magna Carta)</MenuItem>
+                            <MenuItem value="leave-vawc">VAWC Leave</MenuItem>
+
+                            <ListSubheader disableSticky sx={{ px: 2, fontWeight: 800, color: "primary.main", fontSize: "0.68rem", textTransform: "uppercase", lineHeight: "2.2", bgcolor: "background.paper" }}>
+                              Emergency & Professional
+                            </ListSubheader>
+                            <MenuItem value="leave-wl">Wellness Leave</MenuItem>
+                            <MenuItem value="leave-sel">Special Emergency Leave</MenuItem>
+                            <MenuItem value="leave-rl">Rehabilitation Leave</MenuItem>
+                            <MenuItem value="leave-stl">Study Leave</MenuItem>
+
+                            <ListSubheader disableSticky sx={{ px: 2, fontWeight: 800, color: "primary.main", fontSize: "0.68rem", textTransform: "uppercase", lineHeight: "2.2", bgcolor: "background.paper" }}>
+                              Contract of Service (C.O.S)
+                            </ListSubheader>
+                            <MenuItem value="leave-cto">Compensatory Time-Off</MenuItem>
+                            <MenuItem value="leave-wlcos">Wellness Leave - COS</MenuItem>
                           </TextField>
                         </TableCell>
 
-                        {log.status === "leave" ? (
+                        {log.status === "leave" || log.status.startsWith("leave-") ? (
                           <TableCell colSpan={4}>
                             <Typography variant="body2" sx={{ fontStyle: "italic", color: "text.secondary", pl: 1 }}>
-                              On Leave / Excused
+                              On Leave / Excused ({log.status === "leave" ? "General" : LEAVE_NAMES_MAP[log.status.substring(6)] || log.status.substring(6).toUpperCase()})
                             </Typography>
                           </TableCell>
                         ) : log.status === "ob" ? (
@@ -923,6 +1099,149 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
               </TableBody>
             </Table>
           </TableContainer>
+        </Paper>
+      </Grid>
+
+      {/* 3. Leave Benefits Legend Reference */}
+      <Grid size={{ xs: 12 }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: 3,
+            borderRadius: 2.5,
+            border: 1,
+            borderColor: "divider",
+            bgcolor: mode === "dark" ? "rgba(30,41,59,0.2)" : "background.paper",
+            mt: 1,
+          }}
+        >
+          {/* Header */}
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, flexWrap: "wrap", gap: 2 }}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 800, display: "flex", alignItems: "center", gap: 1 }}>
+                <BookIcon color="primary" /> Leave Benefits & Privileges Legend
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Reference guide for Civil Service Commission (CSC) leave rules and Contract of Service (COS) privileges
+              </Typography>
+            </Box>
+            {/* Search filter */}
+            <TextField
+              size="small"
+              placeholder="Search leaves..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                }
+              }}
+              sx={{ width: { xs: "100%", sm: 260 } }}
+            />
+          </Box>
+
+          {/* Categories / Filter Chips */}
+          <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: "wrap", gap: 1 }}>
+            <Chip
+              label="All Leaves"
+              onClick={() => setSelectedCategory("all")}
+              color={selectedCategory === "all" ? "primary" : "default"}
+              variant={selectedCategory === "all" ? "filled" : "outlined"}
+              sx={{ fontWeight: 600 }}
+            />
+            <Chip
+              label="Permanent (VL/SL/SLP)"
+              onClick={() => setSelectedCategory("regular")}
+              color={selectedCategory === "regular" ? "primary" : "default"}
+              variant={selectedCategory === "regular" ? "filled" : "outlined"}
+              sx={{ fontWeight: 600 }}
+            />
+            <Chip
+              label="Family & Maternity"
+              onClick={() => setSelectedCategory("family")}
+              color={selectedCategory === "family" ? "primary" : "default"}
+              variant={selectedCategory === "family" ? "filled" : "outlined"}
+              sx={{ fontWeight: 600 }}
+            />
+            <Chip
+              label="Special Benefits"
+              onClick={() => setSelectedCategory("special")}
+              color={selectedCategory === "special" ? "primary" : "default"}
+              variant={selectedCategory === "special" ? "filled" : "outlined"}
+              sx={{ fontWeight: 600 }}
+            />
+            <Chip
+              label="Contract of Service (C.O.S)"
+              onClick={() => setSelectedCategory("cos")}
+              color={selectedCategory === "cos" ? "primary" : "default"}
+              variant={selectedCategory === "cos" ? "filled" : "outlined"}
+              sx={{ fontWeight: 600 }}
+            />
+          </Stack>
+
+          {/* Leaves Cards Grid */}
+          <Grid container spacing={2}>
+            {filteredLeaveItems.map((item) => (
+              <Grid size={{ xs: 12, sm: 6, md: 4 }} key={item.code}>
+                <Card
+                  elevation={0}
+                  sx={{
+                    height: "100%",
+                    border: 1,
+                    borderColor: "divider",
+                    borderRadius: 2,
+                    transition: "all 0.2s ease-in-out",
+                    "&:hover": {
+                      borderColor: "primary.main",
+                      boxShadow: mode === "dark" ? "0 4px 20px rgba(99,102,241,0.1)" : "0 4px 20px rgba(99,102,241,0.05)",
+                      transform: "translateY(-2px)",
+                    },
+                  }}
+                >
+                  <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1, mb: 1.5 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "text.primary", lineHeight: 1.3 }}>
+                        {item.name}
+                      </Typography>
+                      <Chip
+                        label={item.code}
+                        size="small"
+                        color={
+                          item.category === "regular"
+                            ? "primary"
+                            : item.category === "family"
+                            ? "success"
+                            : item.category === "cos"
+                            ? "warning"
+                            : "secondary"
+                        }
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: "0.68rem",
+                          height: 20,
+                          borderRadius: 1,
+                        }}
+                      />
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.8rem", lineHeight: 1.5 }}>
+                      {item.description}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+            {filteredLeaveItems.length === 0 && (
+              <Grid size={{ xs: 12 }}>
+                <Box sx={{ py: 4, textAlign: "center", color: "text.secondary" }}>
+                  No leaves match your search criteria.
+                </Box>
+              </Grid>
+            )}
+          </Grid>
         </Paper>
       </Grid>
     </Grid>

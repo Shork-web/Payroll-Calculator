@@ -7,7 +7,29 @@ interface DtrDayLog {
   amOut: string
   pmIn: string
   pmOut: string
-  status: "regular" | "weekend" | "holiday" | "absent" | "leave" | "ob" | "special"
+  status:
+    | "regular"
+    | "absent"
+    | "weekend"
+    | "holiday"
+    | "leave"
+    | "ob"
+    | "special"
+    | "leave-vl"
+    | "leave-fl"
+    | "leave-sl"
+    | "leave-ml"
+    | "leave-pl"
+    | "leave-spl"
+    | "leave-mc"
+    | "leave-vawc"
+    | "leave-slp"
+    | "leave-wl"
+    | "leave-sel"
+    | "leave-rl"
+    | "leave-stl"
+    | "leave-cto"
+    | "leave-wlcos"
   lateMinutes: number
   undertimeMinutes: number
 }
