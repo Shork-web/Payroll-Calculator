@@ -383,12 +383,24 @@ export default function Home() {
 
   const handleDeleteHistoryEntry = useCallback(
     async (id: string) => {
+      const entryToDelete = historyEntries.find((e) => e.id === id)
       if (user) {
         setDbLoading(true)
         try {
           await deleteHistoryEntry(user.uid, id)
           const fetchedHistory = await getUserHistory(user.uid)
           setHistoryEntries(fetchedHistory)
+
+          // Check if employee has any other records left in history
+          if (entryToDelete) {
+            const nameLower = entryToDelete.employee.name.toLowerCase()
+            const hasOthers = fetchedHistory.some((e) => e.employee.name.toLowerCase() === nameLower)
+            if (!hasOthers) {
+              const employeeId = nameLower.replace(/[^a-z0-9]/g, "-")
+              await deleteEmployee(user.uid, employeeId)
+              await fetchEmployees()
+            }
+          }
         } catch (error) {
           console.error("Error deleting entry from history:", error)
         } finally {
@@ -398,7 +410,7 @@ export default function Home() {
         setHistoryEntries((prev) => prev.filter((e) => e.id !== id))
       }
     },
-    [user],
+    [user, historyEntries, fetchEmployees],
   )
 
   const handleCancelEdit = useCallback(() => {
