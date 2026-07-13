@@ -1878,10 +1878,13 @@ export function exportDtrPdf(
     periodToLabel = `${monthLabel} ${daysInMonth}, ${yearNum}`
   }
 
-  // Draw copy 1 on left side
+  // Position the card on the left side so it only takes half of the page
+  const startX = leftMargin
+
+  // Draw single copy on left side
   drawDtrCard(
     doc,
-    leftMargin,
+    startX,
     employeeName,
     monthYearLabel,
     daysList,
@@ -1899,34 +1902,6 @@ export function exportDtrPdf(
     scaleX,
     scaleY
   )
-
-  // Draw copy 2 on right side
-  drawDtrCard(
-    doc,
-    centerX + 4 * scaleX,
-    employeeName,
-    monthYearLabel,
-    daysList,
-    supervisorName,
-    supervisorTitle,
-    cutoffPeriod,
-    dtrNo,
-    designation,
-    department,
-    timeScheduleFrom,
-    timeScheduleTo,
-    periodFromLabel,
-    periodToLabel,
-    cardW,
-    scaleX,
-    scaleY
-  )
-
-  // Draw a dotted vertical line down the center to show where to cut/fold!
-  doc.setDrawColor(180, 180, 180)
-  doc.setLineWidth(0.2)
-  doc.setLineDashPattern([2, 2], 0)
-  doc.line(centerX, 10 * scaleY, centerX, pageH - 10 * scaleY)
 
   doc.save(`${employeeName.replace(/\s+/g, "_")}_DTR.pdf`)
 }
