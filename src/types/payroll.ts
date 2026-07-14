@@ -103,6 +103,8 @@ export interface DtrDayLog {
     | "leave-rl"
     | "leave-stl"
     | "leave-cto"
+    | "leave-cto-am"
+    | "leave-cto-pm"
     | "leave-wlcos"
   lateMinutes: number
   undertimeMinutes: number

@@ -188,6 +188,8 @@ const LEAVE_NAMES_MAP: Record<string, string> = {
   rl: "Rehabilitation Leave",
   stl: "Study Leave",
   cto: "Compensatory Time-Off",
+  "cto-am": "Half Day CTO (AM)",
+  "cto-pm": "Half Day CTO (PM)",
   wlcos: "Wellness Leave - COS",
 }
 
@@ -268,7 +270,12 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
 
   // Recalculate late & undertime minutes for a single log
   const computeDayAdjustments = (log: DtrDayLog): { lateMinutes: number; undertimeMinutes: number } => {
-    if (log.status !== "regular" && log.status !== "special") {
+    if (
+      log.status !== "regular" &&
+      log.status !== "special" &&
+      log.status !== "leave-cto-am" &&
+      log.status !== "leave-cto-pm"
+    ) {
       return { lateMinutes: 0, undertimeMinutes: 0 }
     }
 
@@ -288,14 +295,14 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
       const targetPmIn = parseTimeToMinutes(targetPmInStr, true)
       const targetPmOut = parseTimeToMinutes(targetPmOutStr, true)
 
-      if (log.amIn) {
+      if (log.amIn && log.status !== "leave-cto-am") {
         const amInMin = parseTimeToMinutes(log.amIn, false)
         if (amInMin > targetAmIn) {
           l += amInMin - targetAmIn
         }
       }
 
-      if (log.pmIn) {
+      if (log.pmIn && log.status !== "leave-cto-pm") {
         const pmInMin = parseTimeToMinutes(log.pmIn, true)
         if (pmInMin > targetPmIn) {
           l += pmInMin - targetPmIn
@@ -303,13 +310,13 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
       }
 
       if (log.status !== "special") {
-        if (log.amOut) {
+        if (log.amOut && log.status !== "leave-cto-am") {
           const amOutMin = parseTimeToMinutes(log.amOut, false)
           if (amOutMin < targetAmOut) {
             u += targetAmOut - amOutMin
           }
         }
-        if (log.pmOut) {
+        if (log.pmOut && log.status !== "leave-cto-pm") {
           const pmOutMin = parseTimeToMinutes(log.pmOut, true)
           if (pmOutMin < targetPmOut) {
             u += targetPmOut - pmOutMin
@@ -346,7 +353,7 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
       // Tuesday-Friday Flexi (7-4, 8-5, 9-6)
       let requiredPmOutMin = 1020 // Default 5:00 PM (17:00) in minutes
       
-      if (log.amIn) {
+      if (log.amIn && log.status !== "leave-cto-am") {
         const amInMin = parseTimeToMinutes(log.amIn, false)
         if (amInMin <= 420) { // 7:00 AM or earlier
           requiredPmOutMin = 960 // 4:00 PM (16:00)
@@ -358,7 +365,7 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
         }
       }
 
-      if (log.pmIn) {
+      if (log.pmIn && log.status !== "leave-cto-pm") {
         const pmInMin = parseTimeToMinutes(log.pmIn, true)
         if (pmInMin > 780) { // PM IN target: 1:00 PM
           late += pmInMin - 780
@@ -366,14 +373,14 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
       }
 
       if (log.status !== "special") {
-        if (log.amOut) {
+        if (log.amOut && log.status !== "leave-cto-am") {
           const amOutMin = parseTimeToMinutes(log.amOut, false)
           if (amOutMin < 720) { // AM OUT target: 12:00 PM
             ut += 720 - amOutMin
           }
         }
 
-        if (log.pmOut) {
+        if (log.pmOut && log.status !== "leave-cto-pm") {
           const pmOutMin = parseTimeToMinutes(log.pmOut, true)
           if (pmOutMin < requiredPmOutMin) {
             ut += requiredPmOutMin - pmOutMin
@@ -400,7 +407,30 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
 
         // Handle status change side effects
         if (field === "status") {
-          if (value === "weekend" || value === "holiday" || value === "absent" || value === "leave" || value === "ob" || value.startsWith("leave-")) {
+          if (value === "leave-cto-am") {
+            const defaults = getDefaultTimesForDay()
+            updated.amIn = ""
+            updated.amOut = ""
+            updated.pmIn = defaults.pmIn
+            updated.pmOut = defaults.pmOut
+            updated.location = ""
+            updated.specialNote = ""
+          } else if (value === "leave-cto-pm") {
+            const defaults = getDefaultTimesForDay()
+            updated.amIn = defaults.amIn
+            updated.amOut = defaults.amOut
+            updated.pmIn = ""
+            updated.pmOut = ""
+            updated.location = ""
+            updated.specialNote = ""
+          } else if (
+            value === "weekend" ||
+            value === "holiday" ||
+            value === "absent" ||
+            value === "leave" ||
+            value === "ob" ||
+            (value.startsWith("leave-") && value !== "leave-cto-am" && value !== "leave-cto-pm")
+          ) {
             // Non-working statuses — clear all time fields
             updated.amIn = ""
             updated.amOut = ""
@@ -901,6 +931,8 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
               <TableBody>
                 {visibleDays.map((log) => {
                   const isRegular = log.status === "regular" || log.status === "special"
+                  const isAmEnabled = isRegular || log.status === "leave-cto-pm"
+                  const isPmEnabled = isRegular || log.status === "leave-cto-am"
                   return (
                     <React.Fragment key={log.day}>
                       <TableRow
@@ -978,11 +1010,13 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                               Contract of Service (C.O.S)
                             </ListSubheader>
                             <MenuItem value="leave-cto">Compensatory Time-Off</MenuItem>
+                            <MenuItem value="leave-cto-am">Half Day CTO (AM)</MenuItem>
+                            <MenuItem value="leave-cto-pm">Half Day CTO (PM)</MenuItem>
                             <MenuItem value="leave-wlcos">Wellness Leave - COS</MenuItem>
                           </TextField>
                         </TableCell>
 
-                        {log.status === "leave" || log.status.startsWith("leave-") ? (
+                        {log.status === "leave" || (log.status.startsWith("leave-") && log.status !== "leave-cto-am" && log.status !== "leave-cto-pm") ? (
                           <TableCell colSpan={4}>
                             <Typography variant="body2" sx={{ fontStyle: "italic", color: "text.secondary", pl: 1 }}>
                               On Leave / Excused ({log.status === "leave" ? "General" : LEAVE_NAMES_MAP[log.status.substring(6)] || log.status.substring(6).toUpperCase()})
@@ -1008,8 +1042,8 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                               <TextField
                                 size="small"
                                 placeholder="08:00"
-                                value={log.amIn}
-                                disabled={!isRegular}
+                                value={log.status === "leave-cto-am" ? "CTO" : log.amIn}
+                                disabled={!isAmEnabled}
                                 onChange={(e) => handleLogChange(log.day, "amIn", e.target.value)}
                                 variant="standard"
                                 slotProps={{ input: { disableUnderline: true } }}
@@ -1021,8 +1055,8 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                               <TextField
                                 size="small"
                                 placeholder="12:00"
-                                value={log.amOut}
-                                disabled={!isRegular}
+                                value={log.status === "leave-cto-am" ? "CTO" : log.amOut}
+                                disabled={!isAmEnabled}
                                 onChange={(e) => handleLogChange(log.day, "amOut", e.target.value)}
                                 variant="standard"
                                 slotProps={{ input: { disableUnderline: true } }}
@@ -1034,8 +1068,8 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                               <TextField
                                 size="small"
                                 placeholder="01:00"
-                                value={log.pmIn}
-                                disabled={!isRegular}
+                                value={log.status === "leave-cto-pm" ? "CTO" : log.pmIn}
+                                disabled={!isPmEnabled}
                                 onChange={(e) => handleLogChange(log.day, "pmIn", e.target.value)}
                                 variant="standard"
                                 slotProps={{ input: { disableUnderline: true } }}
@@ -1047,8 +1081,8 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                               <TextField
                                 size="small"
                                 placeholder="05:00"
-                                value={log.pmOut}
-                                disabled={!isRegular}
+                                value={log.status === "leave-cto-pm" ? "CTO" : log.pmOut}
+                                disabled={!isPmEnabled}
                                 onChange={(e) => handleLogChange(log.day, "pmOut", e.target.value)}
                                 variant="standard"
                                 slotProps={{ input: { disableUnderline: true } }}

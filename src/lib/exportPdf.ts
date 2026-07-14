@@ -1486,6 +1486,8 @@ function drawDtrCard(
     rl: "Rehabilitation Leave",
     stl: "Study Leave",
     cto: "Compensatory Time-Off",
+    "cto-am": "Half Day CTO (AM)",
+    "cto-pm": "Half Day CTO (PM)",
     wlcos: "Wellness Leave - COS",
   }
 
@@ -1669,7 +1671,7 @@ function drawDtrCard(
         doc.text("ABSENT", l1 + (l5 - l1) / 2, rowY + 3.6 * scaleY, { align: "center" })
         doc.setFont("helvetica", "normal")
         doc.setTextColor(0, 0, 0)
-      } else if (log.status === "leave" || log.status.startsWith("leave-")) {
+      } else if ((log.status === "leave" || log.status.startsWith("leave-")) && log.status !== "leave-cto-am" && log.status !== "leave-cto-pm") {
         doc.setFont("helvetica", "bold")
         doc.setTextColor(59, 130, 246)
         let label = "LEAVE"
@@ -1690,6 +1692,28 @@ function drawDtrCard(
         doc.setFont("helvetica", "normal")
         doc.setFontSize(7.5)
         doc.setTextColor(0, 0, 0)
+      } else if (log.status === "leave-cto-am" || log.status === "leave-cto-pm") {
+        doc.setFont("helvetica", "bold")
+        doc.setTextColor(59, 130, 246)
+        doc.setFontSize(7.5)
+
+        if (log.status === "leave-cto-am") {
+          doc.text("CTO", l1 + colW.amIn / 2, rowY + 3.6 * scaleY, { align: "center" })
+          doc.text("CTO", l2 + colW.amOut / 2, rowY + 3.6 * scaleY, { align: "center" })
+        } else {
+          doc.text("CTO", l3 + colW.pmIn / 2, rowY + 3.6 * scaleY, { align: "center" })
+          doc.text("CTO", l4 + colW.pmOut / 2, rowY + 3.6 * scaleY, { align: "center" })
+        }
+
+        doc.setFont("helvetica", "normal")
+        doc.setTextColor(0, 0, 0)
+        if (log.status === "leave-cto-am") {
+          if (log.pmIn)  doc.text(log.pmIn,  l3 + colW.pmIn  / 2, rowY + 3.6 * scaleY, { align: "center" })
+          if (log.pmOut) doc.text(log.pmOut, l4 + colW.pmOut / 2, rowY + 3.6 * scaleY, { align: "center" })
+        } else {
+          if (log.amIn)  doc.text(log.amIn,  l1 + colW.amIn  / 2, rowY + 3.6 * scaleY, { align: "center" })
+          if (log.amOut) doc.text(log.amOut, l2 + colW.amOut / 2, rowY + 3.6 * scaleY, { align: "center" })
+        }
       } else if (log.status === "ob") {
         doc.setFont("helvetica", "bold")
         doc.setTextColor(16, 185, 129)

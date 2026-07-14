@@ -29,6 +29,8 @@ interface DtrDayLog {
     | "leave-rl"
     | "leave-stl"
     | "leave-cto"
+    | "leave-cto-am"
+    | "leave-cto-pm"
     | "leave-wlcos"
   lateMinutes: number
   undertimeMinutes: number
@@ -50,7 +52,12 @@ const getDefaultTimesForDay = () => {
 }
 
 const computeDayAdjustments = (log: DtrDayLog): { lateMinutes: number; undertimeMinutes: number } => {
-  if (log.status !== "regular" && log.status !== "special") {
+  if (
+    log.status !== "regular" &&
+    log.status !== "special" &&
+    log.status !== "leave-cto-am" &&
+    log.status !== "leave-cto-pm"
+  ) {
     return { lateMinutes: 0, undertimeMinutes: 0 }
   }
 
@@ -70,14 +77,14 @@ const computeDayAdjustments = (log: DtrDayLog): { lateMinutes: number; undertime
     const targetPmIn = parseTimeToMinutes(targetPmInStr, true)
     const targetPmOut = parseTimeToMinutes(targetPmOutStr, true)
 
-    if (log.amIn) {
+    if (log.amIn && log.status !== "leave-cto-am") {
       const amInMin = parseTimeToMinutes(log.amIn, false)
       if (amInMin > targetAmIn) {
         l += amInMin - targetAmIn
       }
     }
 
-    if (log.pmIn) {
+    if (log.pmIn && log.status !== "leave-cto-pm") {
       const pmInMin = parseTimeToMinutes(log.pmIn, true)
       if (pmInMin > targetPmIn) {
         l += pmInMin - targetPmIn
@@ -85,13 +92,13 @@ const computeDayAdjustments = (log: DtrDayLog): { lateMinutes: number; undertime
     }
 
     if (log.status !== "special") {
-      if (log.amOut) {
+      if (log.amOut && log.status !== "leave-cto-am") {
         const amOutMin = parseTimeToMinutes(log.amOut, false)
         if (amOutMin < targetAmOut) {
           u += targetAmOut - amOutMin
         }
       }
-      if (log.pmOut) {
+      if (log.pmOut && log.status !== "leave-cto-pm") {
         const pmOutMin = parseTimeToMinutes(log.pmOut, true)
         if (pmOutMin < targetPmOut) {
           u += targetPmOut - pmOutMin
@@ -128,7 +135,7 @@ const computeDayAdjustments = (log: DtrDayLog): { lateMinutes: number; undertime
     // Tuesday-Friday Flexi (7-4, 8-5, 9-6)
     let requiredPmOutMin = 1020 // Default 5:00 PM (17:00) in minutes
     
-    if (log.amIn) {
+    if (log.amIn && log.status !== "leave-cto-am") {
       const amInMin = parseTimeToMinutes(log.amIn, false)
       if (amInMin <= 420) { // 7:00 AM or earlier
         requiredPmOutMin = 960 // 4:00 PM (16:00)
@@ -140,7 +147,7 @@ const computeDayAdjustments = (log: DtrDayLog): { lateMinutes: number; undertime
       }
     }
 
-    if (log.pmIn) {
+    if (log.pmIn && log.status !== "leave-cto-pm") {
       const pmInMin = parseTimeToMinutes(log.pmIn, true)
       if (pmInMin > 780) { // PM IN target: 1:00 PM
         late += pmInMin - 780
@@ -148,14 +155,14 @@ const computeDayAdjustments = (log: DtrDayLog): { lateMinutes: number; undertime
     }
 
     if (log.status !== "special") {
-      if (log.amOut) {
+      if (log.amOut && log.status !== "leave-cto-am") {
         const amOutMin = parseTimeToMinutes(log.amOut, false)
         if (amOutMin < 720) { // AM OUT target: 12:00 PM
           ut += 720 - amOutMin
         }
       }
 
-      if (log.pmOut) {
+      if (log.pmOut && log.status !== "leave-cto-pm") {
         const pmOutMin = parseTimeToMinutes(log.pmOut, true)
         if (pmOutMin < requiredPmOutMin) {
           ut += requiredPmOutMin - pmOutMin
@@ -315,6 +322,68 @@ describe("Office Hours Calculations", () => {
         undertimeMinutes: 0,
       })
       expect(result).toEqual({ lateMinutes: 15, undertimeMinutes: 15 })
+    })
+  })
+
+  describe("Half Day CTO Calculations", () => {
+    it("ignores morning late/undertime for leave-cto-am on Monday Strict", () => {
+      const result = computeDayAdjustments({
+        day: 1,
+        dayName: "Mon",
+        amIn: "08:15", // late in morning, but ignored
+        amOut: "11:45", // undertime in morning, but ignored
+        pmIn: "01:00", // on time for afternoon
+        pmOut: "05:00", // on time for afternoon
+        status: "leave-cto-am",
+        lateMinutes: 0,
+        undertimeMinutes: 0,
+      })
+      expect(result).toEqual({ lateMinutes: 0, undertimeMinutes: 0 })
+    })
+
+    it("calculates afternoon late and undertime for leave-cto-am on Monday Strict", () => {
+      const result = computeDayAdjustments({
+        day: 1,
+        dayName: "Mon",
+        amIn: "",
+        amOut: "",
+        pmIn: "01:10", // 10 mins late
+        pmOut: "03:50", // 10 mins undertime (based on 4:00 PM target of 7-4 option)
+        status: "leave-cto-am",
+        lateMinutes: 0,
+        undertimeMinutes: 0,
+      })
+      expect(result).toEqual({ lateMinutes: 10, undertimeMinutes: 10 })
+    })
+
+    it("ignores afternoon late/undertime for leave-cto-pm on Tuesday-Friday Flexi", () => {
+      const result = computeDayAdjustments({
+        day: 2,
+        dayName: "Tue",
+        amIn: "08:00", // on time
+        amOut: "12:00", // on time
+        pmIn: "01:15", // late in afternoon, but ignored
+        pmOut: "04:30", // undertime in afternoon, but ignored
+        status: "leave-cto-pm",
+        lateMinutes: 0,
+        undertimeMinutes: 0,
+      })
+      expect(result).toEqual({ lateMinutes: 0, undertimeMinutes: 0 })
+    })
+
+    it("calculates morning late and undertime for leave-cto-pm on Tuesday-Friday Flexi", () => {
+      const result = computeDayAdjustments({
+        day: 3,
+        dayName: "Wed",
+        amIn: "09:05", // 5 mins late relative to 09:00 AM limit
+        amOut: "11:50", // 10 mins undertime relative to 12:00 PM target
+        pmIn: "",
+        pmOut: "",
+        status: "leave-cto-pm",
+        lateMinutes: 0,
+        undertimeMinutes: 0,
+      })
+      expect(result).toEqual({ lateMinutes: 5, undertimeMinutes: 10 })
     })
   })
 })
