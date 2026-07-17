@@ -47,12 +47,12 @@ export function renderPayrollComputationPage(
   y += 4.5
   doc.setFont("helvetica", "bold")
   doc.setFontSize(10.5)
-  doc.setTextColor(15, 110, 86) // PhilFIDA Emerald
+  doc.setTextColor(0, 0, 0) // Black
   doc.text("PHILIPPINE FIBER INDUSTRY DEVELOPMENT AUTHORITY", pageW / 2, y, { align: "center" })
 
   y += 3
   // Elegant double lines
-  doc.setDrawColor(15, 110, 86) // PhilFIDA Emerald
+  doc.setDrawColor(0, 0, 0) // Black
   doc.setLineWidth(0.5)
   doc.line(pageMargin, y, RM, y)
   
@@ -196,12 +196,12 @@ export function renderPayrollComputationPage(
 
   // 3. Compensation Calculation Section
   // Left vertical color accent bar
-  doc.setFillColor(15, 110, 86)
+  doc.setFillColor(0, 0, 0) // Black
   doc.rect(pageMargin, y - 3.5, 2.5, 4.5, "F")
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(9.5)
-  doc.setTextColor(15, 110, 86)
+  doc.setTextColor(0, 0, 0) // Black
   doc.text("COMPENSATION CALCULATION", pageMargin + 5, y)
   
   y += 6.5
@@ -222,7 +222,7 @@ export function renderPayrollComputationPage(
     if (absentIncidentsOnly.length > 0) {
       doc.setFont("helvetica", "normal")
       doc.setFontSize(8)
-      doc.setTextColor(185, 28, 28) // Red-700 to match lates/undertime
+      doc.setTextColor(0, 0, 0) // Black
       
       absentIncidentsOnly.forEach((incident) => {
         if (incident.date?.trim() && Number(incident.days) > 0) {
@@ -244,7 +244,7 @@ export function renderPayrollComputationPage(
     if (lateIncidentsOnly.length > 0) {
       doc.setFont("helvetica", "normal")
       doc.setFontSize(8)
-      doc.setTextColor(185, 28, 28) // Red-700
+      doc.setTextColor(0, 0, 0) // Black
       
       lateIncidentsOnly.forEach((incident) => {
         if (incident.date?.trim() && Number(incident.minutes) > 0) {
@@ -266,7 +266,7 @@ export function renderPayrollComputationPage(
     if (undertimeIncidentsOnly.length > 0) {
       doc.setFont("helvetica", "normal")
       doc.setFontSize(8)
-      doc.setTextColor(185, 28, 28) // Red-700
+      doc.setTextColor(0, 0, 0) // Black
       
       undertimeIncidentsOnly.forEach((incident) => {
         if (incident.date?.trim() && Number(incident.minutes) > 0) {
@@ -290,12 +290,12 @@ export function renderPayrollComputationPage(
   y += 4
 
   // 4. Deductions Section
-  doc.setFillColor(15, 110, 86)
+  doc.setFillColor(0, 0, 0) // Black
   doc.rect(pageMargin, y - 3.5, 2.5, 4.5, "F")
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(9.5)
-  doc.setTextColor(15, 110, 86)
+  doc.setTextColor(0, 0, 0) // Black
   doc.text("DEDUCTIONS", pageMargin + 5, y)
   
   y += 6.5
@@ -333,12 +333,14 @@ export function renderPayrollComputationPage(
 
   // 5. Net Pay Due Highlight Card
   const netCardH = 14
-  doc.setFillColor(15, 110, 86) // Solid PhilFIDA Emerald
-  doc.roundedRect(pageMargin, y, contentW, netCardH, 1.5, 1.5, "F")
+  doc.setFillColor(245, 245, 245) // Neutral light gray fill (no color)
+  doc.setDrawColor(0, 0, 0) // Black border
+  doc.setLineWidth(0.4)
+  doc.roundedRect(pageMargin, y, contentW, netCardH, 1.5, 1.5, "FD")
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(10.5)
-  doc.setTextColor(255, 255, 255) // White text
+  doc.setTextColor(0, 0, 0) // Black text
   doc.text("NET PAY DUE", pageMargin + 6, y + 9)
   doc.setFontSize(12.5)
   doc.text("Php " + n(netPay), amountCol, y + 9, { align: "right" })
