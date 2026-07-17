@@ -118,18 +118,79 @@ const computeDayAdjustments = (log: DtrDayLog): { lateMinutes: number; undertime
     dayNameLower.startsWith("fri")
 
   if (isMonday) {
-    // Monday Strict (7-4 or 8-5)
-    const option1 = calcSchedule("07:00", "12:00", "01:00", "04:00") // 7-4
-    const option2 = calcSchedule("08:00", "12:00", "01:00", "05:00") // 8-5
-    const opt1Total = option1.late + option1.ut
-    const opt2Total = option2.late + option2.ut
-
-    if (opt1Total < opt2Total) {
-      late = option1.late
-      ut = option1.ut
+    // Monday Flexi (7-8 AM, 4-5 PM)
+    let requiredPmOutMin = 1020 // Default 5:00 PM (17:00) in minutes
+    
+    if (log.amIn && log.status !== "leave-cto-am") {
+      const amInMin = parseTimeToMinutes(log.amIn, false)
+      if (amInMin <= 420) { // 7:00 AM or earlier
+        requiredPmOutMin = 960 // 4:00 PM (16:00)
+      } else if (amInMin > 420 && amInMin <= 480) { // between 7:00 AM and 8:00 AM
+        requiredPmOutMin = amInMin + 540 // AM IN + 8 hours work + 1 hour lunch
+      } else { // after 8:00 AM
+        late += amInMin - 480 // Late relative to 8:00 AM
+        requiredPmOutMin = 1020 // 5:00 PM (17:00)
+      }
     } else {
-      late = option2.late
-      ut = option2.ut
+      // If amIn is not present (e.g., leave-cto-am), we find the option (4:00 PM or 5:00 PM target)
+      // that minimizes the PM penalty.
+      let pmLate = 0
+      if (log.pmIn && log.status !== "leave-cto-pm") {
+        const pmInMin = parseTimeToMinutes(log.pmIn, true)
+        if (pmInMin > 780) {
+          pmLate = pmInMin - 780
+        }
+      }
+      
+      let utOption1 = 0
+      let utOption2 = 0
+      if (log.status !== "special" && log.pmOut && log.status !== "leave-cto-pm") {
+        const pmOutMin = parseTimeToMinutes(log.pmOut, true)
+        if (pmOutMin < 960) {
+          utOption1 = 960 - pmOutMin
+        }
+        if (pmOutMin < 1020) {
+          utOption2 = 1020 - pmOutMin
+        }
+      }
+      
+      const opt1Total = pmLate + utOption1
+      const opt2Total = pmLate + utOption2
+      
+      if (opt1Total < opt2Total) {
+        late += pmLate
+        ut += utOption1
+        requiredPmOutMin = 960
+      } else {
+        late += pmLate
+        ut += utOption2
+        requiredPmOutMin = 1020
+      }
+    }
+
+    if (log.amIn && log.status !== "leave-cto-am") {
+      if (log.pmIn && log.status !== "leave-cto-pm") {
+        const pmInMin = parseTimeToMinutes(log.pmIn, true)
+        if (pmInMin > 780) { // PM IN target: 1:00 PM
+          late += pmInMin - 780
+        }
+      }
+
+      if (log.status !== "special") {
+        if (log.amOut) {
+          const amOutMin = parseTimeToMinutes(log.amOut, false)
+          if (amOutMin < 720) { // AM OUT target: 12:00 PM
+            ut += 720 - amOutMin
+          }
+        }
+
+        if (log.pmOut && log.status !== "leave-cto-pm") {
+          const pmOutMin = parseTimeToMinutes(log.pmOut, true)
+          if (pmOutMin < requiredPmOutMin) {
+            ut += requiredPmOutMin - pmOutMin
+          }
+        }
+      }
     }
   } else if (isTuesdayToFriday) {
     // Tuesday-Friday Flexi (7-4, 8-5, 9-6)
@@ -186,7 +247,7 @@ describe("Office Hours Calculations", () => {
     })
   })
 
-  describe("Monday Strict Calculations", () => {
+  describe("Monday Flexi Calculations", () => {
     it("calculates 0 late/undertime when perfectly matching 8-5 on Monday", () => {
       const result = computeDayAdjustments({
         day: 1,
@@ -210,6 +271,21 @@ describe("Office Hours Calculations", () => {
         amOut: "12:00",
         pmIn: "01:00",
         pmOut: "04:00",
+        status: "regular",
+        lateMinutes: 0,
+        undertimeMinutes: 0,
+      })
+      expect(result).toEqual({ lateMinutes: 0, undertimeMinutes: 0 })
+    })
+
+    it("calculates 0 late/undertime for arrival at 7:11 AM and departure at 4:28 PM on Monday", () => {
+      const result = computeDayAdjustments({
+        day: 1,
+        dayName: "Mon",
+        amIn: "07:11",
+        amOut: "12:14",
+        pmIn: "12:32",
+        pmOut: "04:28",
         status: "regular",
         lateMinutes: 0,
         undertimeMinutes: 0,
