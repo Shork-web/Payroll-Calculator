@@ -1521,7 +1521,9 @@ function drawDtrCard(
   periodToLabel: string,
   cardW: number,
   scaleX: number,
-  scaleY: number
+  scaleY: number,
+  layoutOption: "single" | "duplicate" | "split",
+  isCrossedOut: boolean
 ) {
   const margin = startX
   const RM = margin + cardW
@@ -1555,6 +1557,11 @@ function drawDtrCard(
   doc.setTextColor(0, 0, 0)
   doc.text("Civil Service Form No. 48", margin, y)
 
+  const copyLabel = (layoutOption === "split") ? "ORIGINAL COPY" : (startX > 10 * scaleX ? "DUPLICATE COPY" : "ORIGINAL COPY")
+  doc.setFont("helvetica", "italic")
+  doc.setFontSize(6.5)
+  doc.text(copyLabel, RM, y, { align: "right" })
+
   y += 4.5 * scaleY
   doc.setFont("helvetica", "bold")
   doc.setFontSize(11)
@@ -1567,7 +1574,7 @@ function drawDtrCard(
   doc.text("NO.", margin, y)
   doc.setFont("helvetica", "bold")
   doc.text(dtrNo, margin + 8 * scaleX, y)
-  doc.setDrawColor(180, 180, 180)
+  doc.setDrawColor(0, 0, 0)
   doc.setLineWidth(0.2)
   doc.line(margin + 8 * scaleX, y + 0.6 * scaleY, margin + cardW * 0.45, y + 0.6 * scaleY)
 
@@ -1636,7 +1643,7 @@ function drawDtrCard(
   y += 6.5 * scaleY
 
   // Table Grid
-  const rowH = 5.2 * scaleY
+  const rowH = 4.8 * scaleY
   const colW = {
     day: cardW * 0.09,
     amIn: cardW * 0.15,
@@ -1650,10 +1657,16 @@ function drawDtrCard(
   const tableY = y
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8)
-  doc.setFillColor(245, 245, 245)
-  doc.rect(margin, tableY, cardW, rowH * 2, "F")
-  doc.setDrawColor(150, 150, 150)
-  doc.rect(margin, tableY, cardW, rowH * 2)
+  
+  // Determine start/end days based on cutoff
+  const startD = cutoffPeriod === "1st-half" ? 1 : 16
+  const endD = cutoffPeriod === "1st-half" ? 15 : cutoffPeriod === "2nd-half" ? 31 : daysList.length
+  const totalRows = endD - startD + 1
+
+  // Draw one single outer border around the entire table grid
+  doc.setDrawColor(0, 0, 0)
+  doc.setLineWidth(0.25)
+  doc.rect(margin, tableY, cardW, rowH * 2 + totalRows * rowH)
 
   // Table Header Borders & Labels
   const l1 = margin + colW.day
@@ -1663,17 +1676,23 @@ function drawDtrCard(
   const l5 = l4 + colW.pmOut
   const l6 = l5 + colW.utHrs
 
-  // Draw vertical header lines
-  doc.line(l1, tableY, l1, tableY + rowH * 2)
+  const tableBottomY = tableY + rowH * 2 + totalRows * rowH
+
+  // Draw continuous vertical grid lines from table header to table bottom
+  doc.setLineWidth(0.12)
+  doc.line(l1, tableY, l1, tableBottomY)
+  doc.line(l5, tableY, l5, tableBottomY)
+  doc.line(l6, tableY + rowH, l6, tableBottomY)
+
+  // Draw other vertical header dividers
   doc.line(l2, tableY + rowH, l2, tableY + rowH * 2)
   doc.line(l3, tableY, l3, tableY + rowH * 2)
   doc.line(l4, tableY + rowH, l4, tableY + rowH * 2)
-  doc.line(l5, tableY, l5, tableY + rowH * 2)
-  doc.line(l6, tableY + rowH, l6, tableY + rowH * 2)
 
-  // Horizontal inner header line
+  // Draw horizontal header dividers
   doc.line(l1, tableY + rowH, l5, tableY + rowH)
   doc.line(l5, tableY + rowH, RM, tableY + rowH)
+  doc.line(margin, tableY + rowH * 2, RM, tableY + rowH * 2)
 
   // Header labels
   doc.text("DAY", margin + colW.day / 2, tableY + 6.5 * scaleY, { align: "center" })
@@ -1693,43 +1712,64 @@ function drawDtrCard(
   doc.setFont("helvetica", "normal")
   doc.setFontSize(7.5)
 
-  // Draw days (fixed to 31 rows)
-  for (let d = 1; d <= 31; d++) {
+  // Draw days
+  for (let d = startD; d <= endD; d++) {
     const log = daysList.find((l) => l.day === d)
-    doc.rect(margin, rowY, cardW, rowH)
+    
+    // Draw horizontal divider under each row (except the last row which uses the outer border)
+    doc.setDrawColor(0, 0, 0)
+    doc.setLineWidth(0.12)
+    if (d < endD) {
+      doc.line(margin, rowY + rowH, RM, rowY + rowH)
+    }
 
-    // Day number
-    doc.setFont("helvetica", "bold")
-    doc.text(d.toString(), margin + colW.day / 2, rowY + 3.6 * scaleY, { align: "center" })
-    doc.setFont("helvetica", "normal")
+    // Day number (skip if crossed out)
+    if (!isCrossedOut) {
+      doc.setFont("helvetica", "bold")
+      doc.setTextColor(0, 0, 0)
+      doc.text(d.toString(), margin + colW.day / 2, rowY + 3.6 * scaleY, { align: "center" })
+      doc.setFont("helvetica", "normal")
+    }
 
-    const inRange =
-      cutoffPeriod === "full-month" ||
-      (cutoffPeriod === "1st-half" && d <= 15) ||
-      (cutoffPeriod === "2nd-half" && d >= 16)
+    // Draw vertical column dividers for this row if not spanned by a status text
+    const isSpanned = !isCrossedOut && log && d <= daysList.length && (
+      log.status === "weekend" || 
+      log.status === "holiday" || 
+      log.status === "absent" || 
+      (log.status.startsWith("leave") && log.status !== "leave-cto-am" && log.status !== "leave-cto-pm") || 
+      log.status === "ob"
+    )
+    
+    if (!isSpanned) {
+      doc.setDrawColor(0, 0, 0)
+      doc.setLineWidth(0.12)
+      doc.line(l2, rowY, l2, rowY + rowH)
+      doc.line(l3, rowY, l3, rowY + rowH)
+      doc.line(l4, rowY, l4, rowY + rowH)
+    }
 
-    if (log && inRange && d <= daysList.length) {
+    if (!isCrossedOut && log && d <= daysList.length) {
       if (log.status === "weekend") {
         doc.setFont("helvetica", "bold")
-        doc.setTextColor(120, 120, 120)
+        doc.setTextColor(0, 0, 0)
         doc.text(log.dayName.toUpperCase(), l1 + (l5 - l1) / 2, rowY + 3.6 * scaleY, { align: "center" })
         doc.setFont("helvetica", "normal")
         doc.setTextColor(0, 0, 0)
       } else if (log.status === "holiday") {
         doc.setFont("helvetica", "bold")
-        doc.setTextColor(185, 28, 28)
+        doc.setTextColor(0, 0, 0)
         doc.text("HOLIDAY", l1 + (l5 - l1) / 2, rowY + 3.6 * scaleY, { align: "center" })
         doc.setFont("helvetica", "normal")
         doc.setTextColor(0, 0, 0)
       } else if (log.status === "absent") {
         doc.setFont("helvetica", "bold")
-        doc.setTextColor(185, 28, 28)
+        doc.setTextColor(0, 0, 0)
         doc.text("ABSENT", l1 + (l5 - l1) / 2, rowY + 3.6 * scaleY, { align: "center" })
         doc.setFont("helvetica", "normal")
         doc.setTextColor(0, 0, 0)
       } else if ((log.status === "leave" || log.status.startsWith("leave-")) && log.status !== "leave-cto-am" && log.status !== "leave-cto-pm") {
         doc.setFont("helvetica", "bold")
-        doc.setTextColor(59, 130, 246)
+        doc.setTextColor(0, 0, 0)
         let label = "LEAVE"
         if (log.status.startsWith("leave-")) {
           const key = log.status.substring(6)
@@ -1750,7 +1790,7 @@ function drawDtrCard(
         doc.setTextColor(0, 0, 0)
       } else if (log.status === "leave-cto-am" || log.status === "leave-cto-pm") {
         doc.setFont("helvetica", "bold")
-        doc.setTextColor(59, 130, 246)
+        doc.setTextColor(0, 0, 0)
         doc.setFontSize(7.5)
 
         if (log.status === "leave-cto-am") {
@@ -1772,7 +1812,7 @@ function drawDtrCard(
         }
       } else if (log.status === "ob") {
         doc.setFont("helvetica", "bold")
-        doc.setTextColor(16, 185, 129)
+        doc.setTextColor(0, 0, 0)
         const locationText = log.location ? ` - ${log.location.toUpperCase()}` : ""
         let rawLabel = `OB${locationText}`
         const maxTextW = colW.amIn + colW.amOut + colW.pmIn + colW.pmOut - 3 * scaleX
@@ -1805,11 +1845,11 @@ function drawDtrCard(
               ? l4                          // only PM OUT empty → start at PM OUT
               : l5                          // all times filled → start at UT Hrs
 
-            // Right edge of card = l6 + colW.utMins
-            const noteMaxW = (l6 + colW.utMins) - noteStartX - 1.5 * scaleX
+            // Right edge of card = RM
+            const noteMaxW = RM - noteStartX - 1.5 * scaleX
 
             doc.setFont("helvetica", "bold")
-            doc.setTextColor(124, 58, 237)
+            doc.setTextColor(0, 0, 0)
             doc.setFontSize(5.5)
             let note = log.specialNote.toUpperCase()
             while (note.length > 4 && doc.getTextWidth(note) > noteMaxW) {
@@ -1841,14 +1881,30 @@ function drawDtrCard(
     rowY += rowH
   }
 
-  y = rowY + 3.5 * scaleY
+  // Draw diagonal crossed-out line if this card is crossed out (similar to original template)
+  if (isCrossedOut) {
+    doc.setDrawColor(0, 0, 0)
+    doc.setLineWidth(0.3)
+    doc.line(l1, tableY + rowH * 2, l5, tableBottomY)
+
+    // Write "NOT APPLICABLE" in the center of the crossed-out grid (columns l1 to l5)
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(8)
+    doc.setTextColor(0, 0, 0)
+    doc.text("NOT APPLICABLE", l1 + (l5 - l1) / 2, tableY + rowH * 2 + (totalRows * rowH) / 2 + 1 * scaleY, { align: "center" })
+    doc.setFont("helvetica", "normal")
+  }
+
+  let footerY = rowY + 3.5 * scaleY
+  if (layoutOption === "split") {
+    // Force signatory areas of both cards to align horizontally to the 16-row layout bottom
+    footerY = tableY + rowH * 2 + 16 * rowH + 3.5 * scaleY
+  }
+  y = footerY
 
   // Summary Totals
   const activeDaysList = daysList.filter(
-    (log) =>
-      cutoffPeriod === "full-month" ||
-      (cutoffPeriod === "1st-half" && log.day <= 15) ||
-      (cutoffPeriod === "2nd-half" && log.day >= 16)
+    (log) => log.day >= startD && log.day <= endD
   )
   const totalLateUt = activeDaysList.reduce((sum, item) => sum + item.lateMinutes + item.undertimeMinutes, 0)
   const totalHrs = Math.floor(totalLateUt / 60)
@@ -1864,38 +1920,38 @@ function drawDtrCard(
     doc.text(`${totalMins} Mins`, l6 + colW.utMins / 2, y, { align: "center" })
   }
 
-  y += 5.5 * scaleY
+  y += 4.5 * scaleY
   doc.setFont("helvetica", "normal")
   doc.setFontSize(7)
   const certText = "I CERTIFY on my honor that the above is a true and correct report of the hours of work performed, record of which was made daily at the time of arrival and departure from office."
   const certLines = doc.splitTextToSize(certText, cardW)
   doc.text(certLines, margin, y)
 
-  y += certLines.length * 3.3 * scaleY + 6 * scaleY
+  y += certLines.length * 3.0 * scaleY + 4 * scaleY
   // Employee Signature Line
-  doc.setDrawColor(200, 200, 200)
+  doc.setDrawColor(0, 0, 0)
   doc.line(margin + 5 * scaleX, y, RM - 5 * scaleX, y)
-  y += 4 * scaleY
+  y += 3 * scaleY
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8.5)
   doc.text(employeeName.toUpperCase(), center, y - 0.5 * scaleY, { align: "center" })
-  y += 3 * scaleY
+  y += 2.5 * scaleY
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8)
   doc.text("Signature of Employee", center, y, { align: "center" })
 
-  y += 10 * scaleY
+  y += 7 * scaleY
   // Supervisor Certification
   doc.text("Verified as to the prescribed office hours:", margin, y)
-  y += 8 * scaleY
+  y += 6 * scaleY
   doc.line(margin + 5 * scaleX, y, RM - 5 * scaleX, y)
   
-  y += 4.5 * scaleY
+  y += 3.5 * scaleY
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8.5)
   doc.text((supervisorName || "Supervisor In-Charge").toUpperCase(), center, y - 0.5 * scaleY, { align: "center" })
   
-  y += 3 * scaleY
+  y += 2.5 * scaleY
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8)
   doc.text(supervisorTitle || "In-Charge / Supervisor", center, y, { align: "center" })
@@ -1915,7 +1971,8 @@ export function exportDtrPdf(
   timeScheduleTo: string,
   monthLabel: string,
   yearNum: number,
-  paperSize: "a4" | "letter" | "legal" = "a4"
+  paperSize: "a4" | "letter" | "legal" = "a4",
+  layoutOption: "single" | "duplicate" | "split" = "single"
 ): void {
   let formatArg: string | number[] = "a4"
   if (paperSize === "letter") {
@@ -1941,47 +1998,91 @@ export function exportDtrPdf(
   const leftMargin = 6 * scaleX
   const cardW = centerX - leftMargin - 4 * scaleX
 
-  // Compute period labels
   const daysInMonth = daysList.length
-  
-  let periodFromLabel = ""
-  let periodToLabel = ""
 
-  if (cutoffPeriod === "1st-half") {
-    periodFromLabel = `${monthLabel} 1, ${yearNum}`
-    periodToLabel = `${monthLabel} 15, ${yearNum}`
-  } else if (cutoffPeriod === "2nd-half") {
-    periodFromLabel = `${monthLabel} 16, ${yearNum}`
-    periodToLabel = `${monthLabel} ${daysInMonth}, ${yearNum}`
+  // LEFT CARD configuration
+  const leftCutoff = layoutOption === "split" ? "1st-half" : cutoffPeriod
+  let leftPeriodFromLabel = ""
+  let leftPeriodToLabel = ""
+  if (leftCutoff === "1st-half") {
+    leftPeriodFromLabel = `${monthLabel} 1, ${yearNum}`
+    leftPeriodToLabel = `${monthLabel} 15, ${yearNum}`
+  } else if (leftCutoff === "2nd-half") {
+    leftPeriodFromLabel = `${monthLabel} 16, ${yearNum}`
+    leftPeriodToLabel = `${monthLabel} ${daysInMonth}, ${yearNum}`
   } else {
-    periodFromLabel = `${monthLabel} 1, ${yearNum}`
-    periodToLabel = `${monthLabel} ${daysInMonth}, ${yearNum}`
+    leftPeriodFromLabel = `${monthLabel} 1, ${yearNum}`
+    leftPeriodToLabel = `${monthLabel} ${daysInMonth}, ${yearNum}`
   }
 
-  // Position the card on the left side so it only takes half of the page
-  const startX = leftMargin
+  const leftCrossedOut = layoutOption === "split" && cutoffPeriod === "2nd-half"
 
   // Draw single copy on left side
   drawDtrCard(
     doc,
-    startX,
+    leftMargin,
     employeeName,
     monthYearLabel,
     daysList,
     supervisorName,
     supervisorTitle,
-    cutoffPeriod,
+    leftCutoff,
     dtrNo,
     designation,
     department,
     timeScheduleFrom,
     timeScheduleTo,
-    periodFromLabel,
-    periodToLabel,
+    leftPeriodFromLabel,
+    leftPeriodToLabel,
     cardW,
     scaleX,
-    scaleY
+    scaleY,
+    layoutOption,
+    leftCrossedOut
   )
+
+  if (layoutOption === "duplicate" || layoutOption === "split") {
+    // RIGHT CARD configuration
+    const rightCutoff = layoutOption === "split" ? "2nd-half" : cutoffPeriod
+    let rightPeriodFromLabel = ""
+    let rightPeriodToLabel = ""
+    if (rightCutoff === "1st-half") {
+      rightPeriodFromLabel = `${monthLabel} 1, ${yearNum}`
+      rightPeriodToLabel = `${monthLabel} 15, ${yearNum}`
+    } else if (rightCutoff === "2nd-half") {
+      rightPeriodFromLabel = `${monthLabel} 16, ${yearNum}`
+      rightPeriodToLabel = `${monthLabel} ${daysInMonth}, ${yearNum}`
+    } else {
+      rightPeriodFromLabel = `${monthLabel} 1, ${yearNum}`
+      rightPeriodToLabel = `${monthLabel} ${daysInMonth}, ${yearNum}`
+    }
+
+    const rightCrossedOut = layoutOption === "split" && cutoffPeriod === "1st-half"
+
+    // Draw copy on the right side
+    drawDtrCard(
+      doc,
+      centerX + 4 * scaleX,
+      employeeName,
+      monthYearLabel,
+      daysList,
+      supervisorName,
+      supervisorTitle,
+      rightCutoff,
+      dtrNo,
+      designation,
+      department,
+      timeScheduleFrom,
+      timeScheduleTo,
+      rightPeriodFromLabel,
+      rightPeriodToLabel,
+      cardW,
+      scaleX,
+      scaleY,
+      layoutOption,
+      rightCrossedOut
+    )
+  }
 
   doc.save(`${employeeName.replace(/\s+/g, "_")}_DTR.pdf`)
 }

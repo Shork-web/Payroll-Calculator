@@ -9,7 +9,7 @@ import {
   query,
   writeBatch,
 } from "firebase/firestore"
-import type { PayrollEntry, Signatory } from "@/types/payroll"
+import type { PayrollEntry, Signatory, SavedDtr } from "@/types/payroll"
 
 export interface SavedEmployee {
   id: string
@@ -190,3 +190,39 @@ export async function mergeLocalHistory(userId: string, localHistory: PayrollEnt
   }
   await batch.commit()
 }
+
+/**
+ * Saves a single DTR entry for a user.
+ */
+export async function saveDtr(userId: string, dtr: SavedDtr) {
+  checkDb()
+  const docRef = doc(db!, "users", userId, "dtrs", dtr.id)
+  await setDoc(docRef, {
+    ...dtr,
+    updatedAt: new Date().toISOString(),
+  }, { merge: true })
+}
+
+/**
+ * Deletes a single DTR entry for a user.
+ */
+export async function deleteDtr(userId: string, dtrId: string) {
+  checkDb()
+  const docRef = doc(db!, "users", userId, "dtrs", dtrId)
+  await deleteDoc(docRef)
+}
+
+/**
+ * Fetches all DTR entries for a user.
+ */
+export async function getUserDtrs(userId: string): Promise<SavedDtr[]> {
+  checkDb()
+  const colRef = collection(db!, "users", userId, "dtrs")
+  const snapshot = await getDocs(colRef)
+  const dtrs: SavedDtr[] = []
+  snapshot.forEach((docSnap) => {
+    dtrs.push(docSnap.data() as SavedDtr)
+  })
+  return dtrs
+}
+

@@ -23,6 +23,8 @@ import {
   CardContent,
   InputAdornment,
   ListSubheader,
+  Snackbar,
+  Alert,
 } from "@mui/material"
 import {
   PictureAsPdf as PdfIcon,
@@ -33,8 +35,9 @@ import {
 } from "@mui/icons-material"
 
 import { exportDtrPdf } from "@/lib/exportPdf"
-import type { SavedEmployee } from "@/lib/db"
-import type { DtrDayLog } from "@/types/payroll"
+import { saveDtr, deleteDtr, getUserDtrs, type SavedEmployee } from "@/lib/db"
+import type { DtrDayLog, SavedDtr } from "@/types/payroll"
+import { useAuth } from "@/context/AuthContext"
 
 interface DtrCreatorProps {
   savedEmployees?: SavedEmployee[]
@@ -196,6 +199,7 @@ const LEAVE_NAMES_MAP: Record<string, string> = {
 export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps) {
   const theme = useTheme()
   const mode = theme.palette.mode
+  const { user } = useAuth()
 
   const currentYear = new Date().getFullYear()
   const [year, setYear] = useState<number>(currentYear)
@@ -216,6 +220,171 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
   const [timeScheduleFrom, setTimeScheduleFrom] = useState<string>("8:00 AM")
   const [timeScheduleTo, setTimeScheduleTo] = useState<string>("5:00 PM")
   const [paperSize, setPaperSize] = useState<"a4" | "letter" | "legal">("a4")
+  const [layoutOption, setLayoutOption] = useState<"single" | "duplicate" | "split">("single")
+
+  // Saved DTR management state
+  const [savedDtrs, setSavedDtrs] = useState<SavedDtr[]>([])
+  const [selectedDtrId, setSelectedDtrId] = useState<string>("")
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Toast notification state
+  const [toast, setToast] = useState<{
+    open: boolean
+    message: string
+    severity: "success" | "info" | "warning" | "error"
+  }>({
+    open: false,
+    message: "",
+    severity: "success"
+  })
+
+  const showToast = (message: string, severity: "success" | "info" | "warning" | "error" = "success") => {
+    setToast({ open: true, message, severity })
+  }
+
+  const handleCloseToast = () => {
+    setToast((prev) => ({ ...prev, open: false }))
+  }
+
+  // Load saved DTRs if user is logged in
+  useEffect(() => {
+    if (user?.uid) {
+      getUserDtrs(user.uid)
+        .then((list) => {
+          setSavedDtrs(list.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)))
+        })
+        .catch((err) => console.error("Error loading DTRs:", err))
+    } else {
+      setSavedDtrs([])
+    }
+  }, [user])
+
+  const handleLoadDtr = (dtrId: string) => {
+    if (!dtrId) {
+      setSelectedDtrId("")
+      return
+    }
+    if (dtrId === "empty-template") {
+      setSelectedDtrId("empty-template")
+      setEmployeeName("")
+      setDtrNo("")
+      setDesignation("")
+      setDepartment("")
+      setTimeScheduleFrom("8:00 AM")
+      setTimeScheduleTo("5:00 PM")
+      setSupervisorName("")
+      setSupervisorTitle("")
+      setSelectedEmployeeId("")
+      setCutoffPeriod("full-month")
+      setPaperSize("a4")
+      setLayoutOption("single")
+
+      // Regenerate fresh blank days
+      const daysInMonth = new Date(year, month, 0).getDate()
+      const list: DtrDayLog[] = []
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(year, month - 1, d)
+        const dayOfWeek = date.getDay()
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+        const dayName = date.toLocaleDateString("en-US", { weekday: "short" })
+        const defaults = isWeekend
+          ? { amIn: "", amOut: "", pmIn: "", pmOut: "" }
+          : getDefaultTimesForDay()
+
+        list.push({
+          day: d,
+          dayName,
+          amIn: defaults.amIn,
+          amOut: defaults.amOut,
+          pmIn: defaults.pmIn,
+          pmOut: defaults.pmOut,
+          status: isWeekend ? "weekend" : "regular",
+          lateMinutes: 0,
+          undertimeMinutes: 0,
+        })
+      }
+      setDays(list)
+      showToast("Loaded empty DTR template", "info")
+      return
+    }
+
+    const dtr = savedDtrs.find((d) => d.id === dtrId)
+    if (!dtr) return
+    setEmployeeName(dtr.employeeName)
+    setMonth(dtr.month)
+    setYear(dtr.year)
+    setCutoffPeriod(dtr.cutoffPeriod)
+    setDtrNo(dtr.dtrNo)
+    setDesignation(dtr.designation)
+    setDepartment(dtr.department)
+    setTimeScheduleFrom(dtr.timeScheduleFrom)
+    setTimeScheduleTo(dtr.timeScheduleTo)
+    setSupervisorName(dtr.supervisorName)
+    setSupervisorTitle(dtr.supervisorTitle)
+    setDays(dtr.days)
+    setSelectedDtrId(dtr.id)
+  }
+
+  const handleSaveDtr = async () => {
+    if (!user?.uid) return
+    setIsSaving(true)
+    try {
+      const activeName = employeeName.trim() || "Employee Name"
+      const dtrId = (selectedDtrId && selectedDtrId !== "empty-template")
+        ? selectedDtrId
+        : `${activeName.replace(/\s+/g, "_")}_${year}_${month}_${cutoffPeriod}`
+      
+      const newDtr: SavedDtr = {
+        id: dtrId,
+        employeeName: activeName,
+        month,
+        year,
+        cutoffPeriod,
+        dtrNo,
+        designation,
+        department,
+        timeScheduleFrom,
+        timeScheduleTo,
+        supervisorName,
+        supervisorTitle,
+        days,
+        updatedAt: new Date().toISOString()
+      }
+      
+      await saveDtr(user.uid, newDtr)
+      setSelectedDtrId(dtrId)
+      
+      const list = await getUserDtrs(user.uid)
+      setSavedDtrs(list.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)))
+      showToast("DTR saved successfully!", "success")
+    } catch (err: unknown) {
+      console.error(err)
+      const errMsg = err instanceof Error ? err.message : String(err)
+      showToast("Error saving DTR: " + errMsg, "error")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDeleteDtr = async (dtrId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!user?.uid) return
+    if (dtrId === "empty-template") return
+    if (!window.confirm("Are you sure you want to delete this saved DTR?")) return
+    try {
+      await deleteDtr(user.uid, dtrId)
+      if (selectedDtrId === dtrId) {
+        setSelectedDtrId("")
+      }
+      const list = await getUserDtrs(user.uid)
+      setSavedDtrs(list.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)))
+      showToast("DTR deleted successfully!", "success")
+    } catch (err: unknown) {
+      console.error(err)
+      const errMsg = err instanceof Error ? err.message : String(err)
+      showToast("Error deleting DTR: " + errMsg, "error")
+    }
+  }
 
   // Default Prescribed Office Hours Configuration
   const getDefaultTimesForDay = () => {
@@ -544,6 +713,7 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
         return updated
       })
     )
+    showToast("Default schedule filled for weekdays!", "info")
   }
 
   // Totals calculations based on selected cutoff
@@ -633,10 +803,12 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
       absentDays: totals.absents,
       lateIncidents: incidents,
     })
+    showToast("DTR data applied to calculator!", "success")
   }
 
   const handleExportPdf = () => {
     const activeName = employeeName.trim() || "Employee Name"
+    showToast("Generating DTR PDF...", "info")
     exportDtrPdf(
       activeName,
       monthYearLabel,
@@ -651,7 +823,8 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
       timeScheduleTo,
       monthLabel,
       year,
-      paperSize
+      paperSize,
+      layoutOption
     )
   }
 
@@ -703,6 +876,19 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
 
               <TextField
                 select
+                label="PDF Layout Option"
+                size="small"
+                fullWidth
+                value={layoutOption}
+                onChange={(e) => setLayoutOption(e.target.value as "single" | "duplicate" | "split")}
+              >
+                <MenuItem value="single">Single Copy (Left Only)</MenuItem>
+                <MenuItem value="duplicate">Standard Duplicate (Side-by-Side)</MenuItem>
+                <MenuItem value="split">Region VII - Template</MenuItem>
+              </TextField>
+
+              <TextField
+                select
                 label="Month"
                 size="small"
                 fullWidth
@@ -726,6 +912,48 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
               />
 
               <Divider />
+
+              {user && (
+                <TextField
+                  select
+                  label="Load Saved DTR / Template"
+                  size="small"
+                  fullWidth
+                  value={selectedDtrId}
+                  onChange={(e) => handleLoadDtr(e.target.value)}
+                  slotProps={{
+                    select: {
+                      renderValue: (value) => {
+                        if (value === "empty-template") return "Empty Template"
+                        const selected = savedDtrs.find((d) => d.id === value)
+                        return selected ? `${selected.employeeName} - ${MONTHS.find(m => m.value === selected.month)?.label} ${selected.year} (${selected.cutoffPeriod})` : ""
+                      }
+                    }
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>-- Select to Load --</em>
+                  </MenuItem>
+                  <MenuItem value="empty-template">
+                    <strong>-- Empty Template --</strong>
+                  </MenuItem>
+                  {savedDtrs.map((dtr) => (
+                    <MenuItem key={dtr.id} value={dtr.id} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <Typography variant="body2" noWrap>
+                        {dtr.employeeName} ({MONTHS.find(m => m.value === dtr.month)?.label.substring(0, 3)} {dtr.year} - {dtr.cutoffPeriod === "full-month" ? "Full" : dtr.cutoffPeriod === "1st-half" ? "1st" : "2nd"})
+                      </Typography>
+                      <Button
+                        size="small"
+                        color="error"
+                        onClick={(e) => handleDeleteDtr(dtr.id, e)}
+                        sx={{ minWidth: 0, ml: 1, p: 0.5 }}
+                      >
+                        Delete
+                      </Button>
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
 
               {savedEmployees.length > 0 && (
                 <TextField
@@ -922,6 +1150,23 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                     Export DTR PDF
                   </Button>
                 </Stack>
+
+                {user ? (
+                  <Button
+                    variant="contained"
+                    color="success"
+                    fullWidth
+                    onClick={handleSaveDtr}
+                    disabled={isSaving}
+                    sx={{ fontWeight: 700, borderRadius: 1.5 }}
+                  >
+                    {selectedDtrId ? "Update Saved DTR" : "Save DTR to Account"}
+                  </Button>
+                ) : (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center" }}>
+                    Sign in to save this DTR worksheet to your account.
+                  </Typography>
+                )}
               </Stack>
             </CardContent>
           </Card>
@@ -1338,7 +1583,18 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
             )}
           </Grid>
         </Paper>
-      </Grid>
+
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={4000}
+        onClose={handleCloseToast}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert onClose={handleCloseToast} severity={toast.severity} variant="filled" sx={{ width: "100%", borderRadius: 2 }}>
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </Grid>
-  )
+  </Grid>
+)
 }

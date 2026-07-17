@@ -111,3 +111,21 @@ export interface DtrDayLog {
   location?: string
   specialNote?: string
 }
+
+export interface SavedDtr {
+  id: string
+  employeeName: string
+  month: number
+  year: number
+  cutoffPeriod: "1st-half" | "2nd-half" | "full-month"
+  dtrNo: string
+  designation: string
+  department: string
+  timeScheduleFrom: string
+  timeScheduleTo: string
+  supervisorName: string
+  supervisorTitle: string
+  days: DtrDayLog[]
+  updatedAt: string
+}
+
