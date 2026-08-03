@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo, useRef } from "react"
 import {
   Box,
   Typography,
@@ -259,12 +259,15 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
     }
   }, [user])
 
+  const skipMonthYearEffectRef = useRef(false)
+
   const handleLoadDtr = (dtrId: string) => {
     if (!dtrId) {
       setSelectedDtrId("")
       return
     }
     if (dtrId === "empty-template") {
+      skipMonthYearEffectRef.current = true
       setSelectedDtrId("empty-template")
       setEmployeeName("")
       setDtrNo("")
@@ -310,6 +313,10 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
 
     const dtr = savedDtrs.find((d) => d.id === dtrId)
     if (!dtr) return
+
+    skipMonthYearEffectRef.current = true
+
+    setSelectedEmployeeId("")
     setEmployeeName(dtr.employeeName)
     setMonth(dtr.month)
     setYear(dtr.year)
@@ -323,6 +330,7 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
     setSupervisorTitle(dtr.supervisorTitle)
     setDays(dtr.days)
     setSelectedDtrId(dtr.id)
+    showToast(`Loaded DTR for ${dtr.employeeName}`, "success")
   }
 
   const handleSaveDtr = async () => {
@@ -409,6 +417,11 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
 
   // Generate calendar days whenever Month/Year changes
   useEffect(() => {
+    if (skipMonthYearEffectRef.current) {
+      skipMonthYearEffectRef.current = false
+      return
+    }
+
     const daysInMonth = new Date(year, month, 0).getDate()
     const list: DtrDayLog[] = []
 
