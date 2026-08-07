@@ -1737,6 +1737,7 @@ function drawDtrCard(
     const isSpanned = !isCrossedOut && log && d <= daysList.length && (
       log.status === "weekend" || 
       log.status === "holiday" || 
+      log.status === "special-holiday" || 
       log.status === "absent" || 
       (log.status.startsWith("leave") && log.status !== "leave-cto-am" && log.status !== "leave-cto-pm") || 
       log.status === "ob"
@@ -1757,11 +1758,30 @@ function drawDtrCard(
         doc.text(log.dayName.toUpperCase(), l1 + (l5 - l1) / 2, rowY + 3.6 * scaleY, { align: "center" })
         doc.setFont("helvetica", "normal")
         doc.setTextColor(0, 0, 0)
-      } else if (log.status === "holiday") {
+      } else if (log.status === "holiday" || log.status === "special-holiday") {
         doc.setFont("helvetica", "bold")
         doc.setTextColor(0, 0, 0)
-        doc.text("HOLIDAY", l1 + (l5 - l1) / 2, rowY + 3.6 * scaleY, { align: "center" })
+        const baseTitle = log.status === "special-holiday" ? "SPECIAL HOLIDAY" : "HOLIDAY"
+        const reasonText = (log.reason || log.specialNote || "").trim()
+        let label = reasonText ? `${baseTitle} (${reasonText.toUpperCase()})` : baseTitle
+
+        const maxTextW = l5 - l1 - 3 * scaleX
+        let currentFontSize = 7.5
+        doc.setFontSize(currentFontSize)
+        while (currentFontSize > 4.5 && doc.getTextWidth(label) > maxTextW) {
+          currentFontSize -= 0.5
+          doc.setFontSize(currentFontSize)
+        }
+        if (doc.getTextWidth(label) > maxTextW) {
+          while (label.length > 4 && doc.getTextWidth(label + "...") > maxTextW) {
+            label = label.substring(0, label.length - 1)
+          }
+          label += "..."
+        }
+
+        doc.text(label, l1 + (l5 - l1) / 2, rowY + 3.6 * scaleY, { align: "center" })
         doc.setFont("helvetica", "normal")
+        doc.setFontSize(7.5)
         doc.setTextColor(0, 0, 0)
       } else if (log.status === "absent") {
         doc.setFont("helvetica", "bold")

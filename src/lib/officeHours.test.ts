@@ -12,6 +12,7 @@ interface DtrDayLog {
     | "absent"
     | "weekend"
     | "holiday"
+    | "special-holiday"
     | "leave"
     | "ob"
     | "special"
@@ -460,6 +461,38 @@ describe("Office Hours Calculations", () => {
         undertimeMinutes: 0,
       })
       expect(result).toEqual({ lateMinutes: 5, undertimeMinutes: 10 })
+    })
+  })
+
+  describe("Holiday and Special Holiday Calculations", () => {
+    it("returns 0 late and undertime for Holiday status", () => {
+      const result = computeDayAdjustments({
+        day: 5,
+        dayName: "Fri",
+        amIn: "",
+        amOut: "",
+        pmIn: "",
+        pmOut: "",
+        status: "holiday",
+        lateMinutes: 0,
+        undertimeMinutes: 0,
+      })
+      expect(result).toEqual({ lateMinutes: 0, undertimeMinutes: 0 })
+    })
+
+    it("returns 0 late and undertime for Special Holiday status", () => {
+      const result = computeDayAdjustments({
+        day: 21,
+        dayName: "Fri",
+        amIn: "",
+        amOut: "",
+        pmIn: "",
+        pmOut: "",
+        status: "special-holiday",
+        lateMinutes: 0,
+        undertimeMinutes: 0,
+      })
+      expect(result).toEqual({ lateMinutes: 0, undertimeMinutes: 0 })
     })
   })
 })

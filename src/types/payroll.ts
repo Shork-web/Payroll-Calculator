@@ -86,6 +86,7 @@ export interface DtrDayLog {
     | "absent"
     | "weekend"
     | "holiday"
+    | "special-holiday"
     | "leave"
     | "ob"
     | "special"
@@ -110,6 +111,7 @@ export interface DtrDayLog {
   undertimeMinutes: number
   location?: string
   specialNote?: string
+  reason?: string
 }
 
 export interface SavedDtr {

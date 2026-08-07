@@ -669,6 +669,7 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
           } else if (
             value === "weekend" ||
             value === "holiday" ||
+            value === "special-holiday" ||
             value === "absent" ||
             value === "leave" ||
             value === "ob" ||
@@ -1294,7 +1295,8 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                             </ListSubheader>
                             <MenuItem value="regular">Regular Work</MenuItem>
                             <MenuItem value="weekend">Weekend</MenuItem>
-                            <MenuItem value="holiday">Holiday</MenuItem>
+                            <MenuItem value="holiday">Holiday (Regular)</MenuItem>
+                            <MenuItem value="special-holiday">Special Holiday</MenuItem>
                             <MenuItem value="absent">Absent</MenuItem>
                             <MenuItem value="ob">Official Business (OB)</MenuItem>
                             <MenuItem value="special">Special Case (OB Partial)</MenuItem>
@@ -1340,6 +1342,26 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                             <Typography variant="body2" sx={{ fontStyle: "italic", color: "text.secondary", pl: 1 }}>
                               On Leave / Excused ({log.status === "leave" ? "General" : LEAVE_NAMES_MAP[log.status.substring(6)] || log.status.substring(6).toUpperCase()})
                             </Typography>
+                          </TableCell>
+                        ) : log.status === "holiday" || log.status === "special-holiday" ? (
+                          <TableCell colSpan={4}>
+                            <TextField
+                              size="small"
+                              placeholder={
+                                log.status === "special-holiday"
+                                  ? "Enter Special Holiday Reason (e.g. Ninoy Aquino Day)"
+                                  : "Enter Holiday Reason (e.g. Independence Day)"
+                              }
+                              value={log.reason ?? log.specialNote ?? ""}
+                              onChange={(e) => {
+                                handleLogChange(log.day, "reason", e.target.value)
+                                handleLogChange(log.day, "specialNote", e.target.value)
+                              }}
+                              fullWidth
+                              variant="standard"
+                              slotProps={{ input: { disableUnderline: false } }}
+                              sx={{ fontStyle: "italic", input: { fontSize: "0.8rem", py: 0.2 } }}
+                            />
                           </TableCell>
                         ) : log.status === "ob" ? (
                           <TableCell colSpan={4}>
