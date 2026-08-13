@@ -14,6 +14,7 @@ export function getSemiMonthlyNoTaxEarned(monthlyRate: number): number {
 export function computeSemiMonthlyNoTaxPayroll(inputs: PayrollInputs): PayrollResult {
   const { monthlyRate, workingDays, periodStart, periodEnd, lateMinutes, undertimeMinutes, absentDays } = inputs
   const overpayment = round(inputs.overpayment ?? 0)
+  const underpayment = round(inputs.underpayment ?? 0)
 
   const periodWorkingDays = computeWorkingDaysInRange(periodStart, periodEnd)
   const dailyRate = round(monthlyRate / workingDays)
@@ -28,8 +29,9 @@ export function computeSemiMonthlyNoTaxPayroll(inputs: PayrollInputs): PayrollRe
   const total = round(Math.max(0, earned - absentDeduction - lateDeduction - undertimeDeduction))
   const premium = round(total * PREMIUM_RATE)
   const overpaymentPremium = round(overpayment * PREMIUM_RATE)
+  const underpaymentPremium = round(underpayment * PREMIUM_RATE)
 
-  const grossPay = round(total + premium - overpayment - overpaymentPremium)
+  const grossPay = round(total + premium - overpayment - overpaymentPremium + underpayment + underpaymentPremium)
   
   // No tax calculations for this computation type
   const taxableIncome = 0
@@ -49,6 +51,8 @@ export function computeSemiMonthlyNoTaxPayroll(inputs: PayrollInputs): PayrollRe
     grossPay,
     overpayment,
     overpaymentPremium,
+    underpayment,
+    underpaymentPremium,
     absentDeduction,
     lateDeduction,
     undertimeDeduction,

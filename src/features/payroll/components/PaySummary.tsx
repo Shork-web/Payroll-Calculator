@@ -128,6 +128,8 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
         <LedgerColumn title="Earnings">
           <LedgerRow label="Base earned" subtitle={earnedSubtitle} value={formatValue(result?.earned)} />
           <LedgerRow label="20% premium" value={formatValue(result?.premium)} />
+          <LedgerRow label="Underpayment" value={formatValue(result?.underpayment)} />
+          <LedgerRow label="Underpayment premium" value={formatValue(result?.underpaymentPremium)} />
           <LedgerRow label="Gross pay" value={formatValue(displayGross)} isTotal color="success.main" />
         </LedgerColumn>
 

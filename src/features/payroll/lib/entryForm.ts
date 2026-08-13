@@ -13,6 +13,7 @@ export function entryToFormValues(target: PayrollEntry): PayrollFormInput {
     undertimeMinutes: target.inputs.undertimeMinutes ?? 0,
     absentDays: target.inputs.absentDays,
     overpayment: target.inputs.overpayment,
+    underpayment: target.inputs.underpayment ?? 0,
     signatoryName: target.employee.signatoryName || "",
     signatoryTitle: target.employee.signatoryTitle || "",
     payslipSignatoryName: target.employee.payslipSignatoryName || "",

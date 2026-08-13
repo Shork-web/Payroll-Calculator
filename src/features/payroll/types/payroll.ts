@@ -21,6 +21,7 @@ export interface PayrollInputs {
   undertimeMinutes?: number | undefined
   absentDays: number
   overpayment: number
+  underpayment: number
   lateDates?: string | undefined
   undertimeDates?: string | undefined
   absentDates?: string | undefined
@@ -46,6 +47,8 @@ export interface PayrollResult {
   grossPay: number
   overpayment: number
   overpaymentPremium: number
+  underpayment: number
+  underpaymentPremium: number
   absentDeduction: number
   lateDeduction: number
   undertimeDeduction: number

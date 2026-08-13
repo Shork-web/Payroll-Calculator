@@ -319,6 +319,7 @@ export function usePayrollActions({
         undertimeMinutes: dtrValues.undertimeMinutes,
         absentDays: dtrValues.absentDays,
         overpayment: 0,
+        underpayment: 0,
         signatoryName: matchingEmp?.signatoryName || "",
         signatoryTitle: matchingEmp?.signatoryTitle || "",
         payslipSignatoryName: matchingEmp?.payslipSignatoryName || "",

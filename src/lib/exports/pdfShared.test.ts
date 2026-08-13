@@ -18,6 +18,7 @@ describe("pdfShared", () => {
         lateMinutes: 0,
         absentDays: 0,
         overpayment: 0,
+        underpayment: 0,
         computationType: "semi-monthly",
         additionalTax: 0,
       },

@@ -13,8 +13,8 @@ export function DeductionsTaxSection() {
     computationTypeValue !== "semi-monthly-no-tax" && computationTypeValue !== "monthly-no-tax"
 
   return (
-    <FormSection title="Deductions & tax" icon={<DeductionsIcon sx={{ fontSize: 16, color: "success.main" }} />}>
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: showTax ? "1fr 1fr" : "1fr" }, gap: 1.25 }}>
+    <FormSection title="Adjustments & tax" icon={<DeductionsIcon sx={{ fontSize: 16, color: "success.main" }} />}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.25 }}>
         <FormTextField
           name="overpayment"
           label="Overpayment recovery"
@@ -23,7 +23,17 @@ export function DeductionsTaxSection() {
           slotProps={{ htmlInput: { step: "any" } }}
           placeholder="0"
         />
-        {showTax && (
+        <FormTextField
+          name="underpayment"
+          label="Underpayment adjustment"
+          type="number"
+          registerOptions={numberFieldOptions}
+          slotProps={{ htmlInput: { step: "any" } }}
+          placeholder="0"
+        />
+      </Box>
+      {showTax && (
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.25, mt: 1.25 }}>
           <FormTextField
             name="additionalTax"
             label="Additional withholding tax"
@@ -32,12 +42,12 @@ export function DeductionsTaxSection() {
             slotProps={{ htmlInput: { step: "any" } }}
             placeholder="0"
           />
-        )}
-      </Box>
+        </Box>
+      )}
       {showTax && (
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.25, mt: 1.25 }}>
           <FormTextField name="additionalTaxDate" label="Tax period" placeholder="Jun 15" />
-          <FormTextField name="additionalTaxReason" label="Reason" placeholder="Adjustment" />
+          <FormTextField name="additionalTaxReason" label="Tax reason" placeholder="Adjustment" />
         </Box>
       )}
     </FormSection>

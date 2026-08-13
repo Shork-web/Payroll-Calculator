@@ -16,6 +16,7 @@ export function getMonthlyNoTaxEarned(monthlyRate: number): number {
 export function computeMonthlyNoTaxPayroll(inputs: PayrollInputs): PayrollResult {
   const { monthlyRate, workingDays, periodStart, periodEnd, lateMinutes, undertimeMinutes, absentDays } = inputs
   const overpayment = round(inputs.overpayment ?? 0)
+  const underpayment = round(inputs.underpayment ?? 0)
 
   const periodWorkingDays = computeWorkingDaysInRange(periodStart, periodEnd)
   const dailyRate = round(monthlyRate / workingDays)
@@ -30,8 +31,9 @@ export function computeMonthlyNoTaxPayroll(inputs: PayrollInputs): PayrollResult
   const total = round(Math.max(0, earned - absentDeduction - lateDeduction - undertimeDeduction))
   const premium = round(total * PREMIUM_RATE)
   const overpaymentPremium = round(overpayment * PREMIUM_RATE)
+  const underpaymentPremium = round(underpayment * PREMIUM_RATE)
 
-  const grossPay = round(total + premium - overpayment - overpaymentPremium)
+  const grossPay = round(total + premium - overpayment - overpaymentPremium + underpayment + underpaymentPremium)
   
   // No tax calculations for this computation type
   const taxableIncome = 0
@@ -51,6 +53,8 @@ export function computeMonthlyNoTaxPayroll(inputs: PayrollInputs): PayrollResult
     grossPay,
     overpayment,
     overpaymentPremium,
+    underpayment,
+    underpaymentPremium,
     absentDeduction,
     lateDeduction,
     undertimeDeduction,

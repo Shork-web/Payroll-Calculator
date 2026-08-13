@@ -18,6 +18,7 @@ type PayrollComputationInput = Pick<
   | "undertimeMinutes"
   | "absentDays"
   | "overpayment"
+  | "underpayment"
   | "computationType"
 >
 
@@ -27,6 +28,7 @@ export function estimateGrossPay(input: PayrollComputationInput): number {
     ...input,
     // Add defaults if they are missing
     undertimeMinutes: input.undertimeMinutes ?? 0,
+    underpayment: input.underpayment ?? 0,
     computationType: input.computationType ?? "semi-monthly",
     additionalTax: 0,
   })

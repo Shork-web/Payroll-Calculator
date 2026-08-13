@@ -13,6 +13,7 @@ const coerceFormNumber = () =>
   }, z.number())
 
 const overpaymentField = coerceFormNumber().pipe(z.number().min(0))
+const underpaymentField = coerceFormNumber().pipe(z.number().min(0))
 
 const workingDaysField = coerceFormNumber().pipe(
   z
@@ -29,6 +30,7 @@ export const payrollNumericSchema = z.object({
   undertimeMinutes: coerceFormNumber().pipe(z.number().min(0)),
   absentDays: coerceFormNumber().pipe(z.number().min(0)),
   overpayment: overpaymentField,
+  underpayment: underpaymentField,
   additionalTax: coerceFormNumber().pipe(z.number().min(0)),
   additionalTaxDate: z.string().optional(),
   additionalTaxReason: z.string().optional(),
@@ -53,6 +55,7 @@ export const payrollSchema = z
     undertimeMinutes: coerceFormNumber().pipe(z.number().min(0)),
     absentDays: coerceFormNumber().pipe(z.number().min(0)),
     overpayment: overpaymentField,
+    underpayment: underpaymentField.default(0),
     signatoryName: z.string().default(""),
     signatoryTitle: z.string().default(""),
     payslipSignatoryName: z.string().default(""),

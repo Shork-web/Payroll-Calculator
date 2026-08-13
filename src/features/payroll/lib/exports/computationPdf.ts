@@ -2,6 +2,7 @@
 import type { EmployeeInfo, PayrollInputs, PayrollResult, PayrollEntry } from "@/features/payroll/types/payroll"
 import {
   computationModeLabel,
+  computeComputationPageFillLayout,
   drawMetricCards,
   drawOfficialFooter,
   drawOfficialPhilfidaHeader,
@@ -11,20 +12,19 @@ import {
   drawProfilePanel,
   loadPhilfidaLogo,
   type OfficialTableRow,
-  type PdfPageBreakContext,
 } from "@/lib/exports/pdfBranding"
-import { buildPayrollExportFilename, createComputationPdfDoc, createPdfPageLayout, getPdfPaperSize, n, resolvePdfPaperFormat, scaleMm, type PdfDoc, type PdfPaperSize } from "@/lib/exports/pdfShared"
+import { buildPayrollExportFilename, createComputationPdfDoc, createPdfPageLayout, getPdfPaperSize, n, resolvePdfPaperFormat, type PdfDoc, type PdfPaperSize } from "@/lib/exports/pdfShared"
 
 function buildComputationRows(
   result: PayrollResult,
   inputs: PayrollInputs,
 ): OfficialTableRow[] {
   const {
-    dailyRate, perMinRate,
+    dailyRate,
     earned, absentDeduction, lateDeduction, undertimeDeduction,
-    total, premium, overpayment, overpaymentPremium, tax, netPay,
+    total, premium, grossPay, overpayment, overpaymentPremium, underpayment, underpaymentPremium, tax, netPay,
   } = result
-  const { monthlyRate, lateMinutes, undertimeMinutes, absentDays, lateIncidents } = inputs
+  const { monthlyRate } = inputs
 
   const rows: OfficialTableRow[] = []
   let idx = 1
@@ -33,130 +33,92 @@ function buildComputationRows(
     rows.push({ index: String(idx++), ...row })
   }
 
-  if (result.computationType === "daily") {
-    push({
-      description: `Base Pay (${n(dailyRate)} x ${result.periodWorkingDays} days)`,
-      category: "Earning",
-      amount: n(earned),
-      rowType: "earning",
-    })
-  } else if (result.computationType === "monthly" || result.computationType === "monthly-no-tax") {
-    push({
-      description: `Base Pay (Monthly Rate: ${n(monthlyRate)})`,
-      category: "Earning",
-      amount: n(earned),
-      rowType: "earning",
-    })
-  } else {
-    push({
-      description: `Base Pay (${n(monthlyRate)} / 2 semi-monthly)`,
-      category: "Earning",
-      amount: n(earned),
-      rowType: "earning",
+  const pushSection = (title: string) => {
+    rows.push({
+      index: "",
+      description: title,
+      category: "",
+      amount: "",
+      rowType: "section",
     })
   }
 
-  if (absentDays > 0) {
-    push({
-      description: `Less: Absences (${absentDays} day${absentDays !== 1 ? "s" : ""})`,
-      category: "Deduction",
-      amount: `(${n(absentDeduction)})`,
-      rowType: "deduction",
-    })
-    const absentIncidentsOnly = lateIncidents?.filter(i => i.type === "absent") || []
-    absentIncidentsOnly.forEach((incident) => {
-      if (incident.date?.trim() && Number(incident.days) > 0) {
-        const incidentDeduction = Number(incident.days) * dailyRate
-        push({
-          description: `  ${incident.date} — ${incident.days} day(s)`,
-          category: "Detail",
-          amount: `(${n(incidentDeduction)})`,
-          rowType: "deduction",
-        })
-      }
-    })
-  }
+  const formatDeductionAmount = (amount: number) => (amount > 0 ? `(${n(amount)})` : n(0))
+  const formatAdditionAmount = (amount: number) => (amount > 0 ? n(amount) : n(0))
 
-  if (lateMinutes > 0) {
-    push({
-      description: `Less: Lates (${lateMinutes} mins)`,
-      category: "Deduction",
-      amount: `(${n(lateDeduction)})`,
-      rowType: "deduction",
-    })
-    const lateIncidentsOnly = lateIncidents?.filter(i => i.type === "late" || !i.type) || []
-    lateIncidentsOnly.forEach((incident) => {
-      if (incident.date?.trim() && Number(incident.minutes) > 0) {
-        const incidentDeduction = Number(incident.minutes) * perMinRate
-        push({
-          description: `  ${incident.date} — ${incident.minutes} min(s)`,
-          category: "Detail",
-          amount: `(${n(incidentDeduction)})`,
-          rowType: "deduction",
-        })
-      }
-    })
-  }
+  const basePayDescription =
+    result.computationType === "daily"
+      ? `Base Pay (${n(dailyRate)} x ${result.periodWorkingDays} days)`
+      : result.computationType === "monthly" || result.computationType === "monthly-no-tax"
+        ? `Base Pay (Monthly Rate: ${n(monthlyRate)})`
+        : `Base Pay (${n(monthlyRate)} / 2 semi-monthly)`
 
-  if ((undertimeMinutes ?? 0) > 0) {
-    push({
-      description: `Less: Undertime (${undertimeMinutes} mins)`,
-      category: "Deduction",
-      amount: `(${n(undertimeDeduction)})`,
-      rowType: "deduction",
-    })
-    const undertimeIncidentsOnly = lateIncidents?.filter(i => i.type === "undertime") || []
-    undertimeIncidentsOnly.forEach((incident) => {
-      if (incident.date?.trim() && Number(incident.minutes) > 0) {
-        const incidentDeduction = Number(incident.minutes) * perMinRate
-        push({
-          description: `  ${incident.date} — ${incident.minutes} min(s)`,
-          category: "Detail",
-          amount: `(${n(incidentDeduction)})`,
-          rowType: "deduction",
-        })
-      }
-    })
-  }
+  pushSection("A. EARNINGS")
+  push({
+    description: basePayDescription,
+    category: "Earning",
+    amount: n(earned),
+    rowType: "neutral",
+  })
 
-  push({ description: "Subtotal (Before Premium)", category: "Subtotal", amount: n(total), rowType: "neutral", isBold: true })
-  push({ description: "Add: 20% Premium", category: "Earning", amount: n(premium), rowType: "earning" })
+  pushSection("B. ATTENDANCE DEDUCTIONS")
+  push({ description: "Less: Absent", category: "Deduction", amount: formatDeductionAmount(absentDeduction), rowType: "neutral" })
+  push({ description: "Less: Late", category: "Deduction", amount: formatDeductionAmount(lateDeduction), rowType: "neutral" })
+  push({ description: "Less: Undertime", category: "Deduction", amount: formatDeductionAmount(undertimeDeduction), rowType: "neutral" })
+  push({
+    description: "Subtotal (After Attendance)",
+    category: "Subtotal",
+    amount: n(total),
+    rowType: "neutral",
+    isBold: true,
+  })
 
-  const displayGross = total + premium
-  push({ description: "Gross Pay", category: "Total", amount: n(displayGross), rowType: "earning", isBold: true })
+  pushSection("C. PREMIUM & ADJUSTMENTS")
+  push({ description: "Add: 20% COS Premium", category: "Earning", amount: n(premium), rowType: "neutral" })
+  push({
+    description: "Less: Overpayment (incl. premium)",
+    category: "Deduction",
+    amount: formatDeductionAmount(overpayment + overpaymentPremium),
+    rowType: "neutral",
+  })
+  push({
+    description: "Add: Underpayment (incl. premium)",
+    category: "Adjustment",
+    amount: formatAdditionAmount(underpayment + underpaymentPremium),
+    rowType: "neutral",
+  })
+  push({
+    description: "Gross Pay",
+    category: "Total",
+    amount: n(grossPay),
+    rowType: "neutral",
+    isBold: true,
+  })
 
   const addTax = inputs.additionalTax ?? 0
   const baseTax = Math.max(0, tax - addTax)
+  const hasTax =
+    result.computationType !== "semi-monthly-no-tax" && result.computationType !== "monthly-no-tax"
 
-  if (baseTax > 0) {
+  if (hasTax) {
+    pushSection("D. TAX WITHHOLDING")
     push({
-      description: "Withholding Tax (5%)",
+      description: "Less: Withholding Tax (5%)",
       category: "Deduction",
-      amount: `(${n(baseTax)})`,
-      rowType: "deduction",
+      amount: formatDeductionAmount(baseTax),
+      rowType: "neutral",
     })
-  }
-  if (addTax > 0) {
-    const details = []
-    if (inputs.additionalTaxDate) details.push(inputs.additionalTaxDate)
-    if (inputs.additionalTaxReason) details.push(inputs.additionalTaxReason)
-    const label = details.length > 0 ? `Additional Tax (${details.join(" - ")})` : "Additional Tax"
-    push({ description: label, category: "Deduction", amount: `(${n(addTax)})`, rowType: "deduction" })
-  }
-  if (overpayment > 0) {
     push({
-      description: "Overpayment Deduction (incl. premium)",
+      description: addTax > 0 && inputs.additionalTaxReason
+        ? `Less: Add'l Tax — ${inputs.additionalTaxReason}`
+        : "Less: Additional Tax",
       category: "Deduction",
-      amount: `(${n(overpayment + overpaymentPremium)})`,
-      rowType: "deduction",
+      amount: formatDeductionAmount(addTax),
+      rowType: "neutral",
     })
   }
 
-  const totalDeductions = tax + overpayment + overpaymentPremium
-  if (totalDeductions === 0 && tax === 0) {
-    push({ description: "No statutory deductions", category: "Deduction", amount: "0.00", rowType: "neutral" })
-  }
-
+  pushSection(hasTax ? "E. NET PAY" : "D. NET PAY")
   push({
     description: "NET PAY DUE",
     category: "Net Pay",
@@ -186,35 +148,13 @@ function renderPayrollComputationPage(
   const {
     dailyRate, hourlyRate,
     earned, absentDeduction, lateDeduction, undertimeDeduction,
-    total, premium, netPay,
+    grossPay, netPay,
   } = result
   const { monthlyRate, workingDays, lateMinutes, undertimeMinutes, absentDays } = inputs
 
   const tableRows = buildComputationRows(result, inputs)
-  const { pageW, margin, contentW, scale, startY } = createPdfPageLayout(doc)
-  const displayGross = total + premium
-
-  const pageBreak: PdfPageBreakContext = {
-    maxContentY: doc.internal.pageSize.getHeight() - margin,
-    topMargin: margin,
-    onNewPage: () => {
-      doc.addPage()
-      pageBreak.maxContentY = doc.internal.pageSize.getHeight() - margin
-    },
-  }
-
-  const ensureSpace = (currentY: number, needed: number): number => {
-    if (currentY + needed <= pageBreak.maxContentY) return currentY
-    pageBreak.onNewPage()
-    return margin
-  }
-
-  let y = drawOfficialPhilfidaHeader(doc, logoUrl, pageW, margin, startY, {
-    documentTitle: "OFFICIAL COMPUTATION OF SERVICES RENDERED",
-    documentSubtitle: "Contract of Service — Payroll Computation Record",
-  }, scale)
-
-  y = drawOfficialSectionHeader(doc, margin, y, "EMPLOYEE PROFILE & SALARY RATES", scale)
+  const { pageW, pageH, margin, contentW, scale, startY } = createPdfPageLayout(doc)
+  const compact = true
 
   const profileFields = [
     { label: "Position / Designation", value: employee.position || "—" },
@@ -225,27 +165,14 @@ function renderPayrollComputationPage(
     { label: "Pay Period", value: `${period} (${modeLabel})` },
   ]
 
-  y = drawProfilePanel(doc, margin, contentW, y, employee.name, profileFields, scale)
+  let footerNote: string | undefined
+  if (absentDays > 0 || lateMinutes > 0 || (undertimeMinutes ?? 0) > 0) {
+    const baseLost = absentDeduction + lateDeduction + undertimeDeduction
+    const premiumLost = baseLost * 0.20
+    footerNote = `Note: Premium not credited due to absences, lates, or undertime (Php ${n(premiumLost)}).`
+  }
 
-  y = drawMetricCards(doc, margin, contentW, y, [
-    { label: "Earned for Period", value: "Php " + n(earned) },
-    { label: "Gross Pay", value: "Php " + n(displayGross) },
-    { label: "Net Pay Due", value: "Php " + n(netPay), accent: "green" },
-  ], scale)
-
-  y = drawOfficialTable(
-    doc,
-    margin,
-    contentW,
-    y,
-    `PAYROLL COMPUTATION SCHEDULE — ${tableRows.length} LINE ITEMS`,
-    tableRows,
-    scale,
-    pageBreak,
-  )
-
-  y = ensureSpace(y, scaleMm(30, scale))
-  y = drawOfficialSignatories(doc, margin, contentW, y, [
+  const signatoryBlocks = [
     {
       label: "Conforme / Received by:",
       name: employee.name,
@@ -256,17 +183,52 @@ function renderPayrollComputationPage(
       name: employee.signatoryName || "",
       title: employee.signatoryTitle || "Authorized Officer",
     },
-  ], scale)
+  ]
 
-  let footerNote: string | undefined
-  if (absentDays > 0 || lateMinutes > 0 || (undertimeMinutes ?? 0) > 0) {
-    const baseLost = absentDeduction + lateDeduction + undertimeDeduction
-    const premiumLost = baseLost * 0.20
-    footerNote = `Note: Premium not credited due to absences, lates, or undertime (Php ${n(premiumLost)}).`
-  }
+  const fill = computeComputationPageFillLayout(
+    doc,
+    pageH,
+    margin,
+    contentW,
+    scale,
+    tableRows,
+    profileFields,
+    employee.name,
+    signatoryBlocks,
+    footerNote,
+    compact,
+  )
+  const cs = fill.scale
 
-  y = ensureSpace(y, scaleMm(22, scale))
-  drawOfficialFooter(doc, pageW, margin, contentW, y, footerNote, issued, scale)
+  let y = drawOfficialPhilfidaHeader(doc, logoUrl, pageW, margin, startY, {
+    documentTitle: "OFFICIAL COMPUTATION OF SERVICES RENDERED",
+    documentSubtitle: "COS and JO - Payroll Computation Record",
+  }, cs, compact)
+
+  y = drawOfficialSectionHeader(doc, margin, y, "EMPLOYEE PROFILE & SALARY RATES", cs, compact)
+
+  y = drawProfilePanel(doc, margin, contentW, y, employee.name, profileFields, cs, compact)
+
+  y = drawMetricCards(doc, margin, contentW, y, [
+    { label: "Earned for Period", value: "Php " + n(earned) },
+    { label: "Gross Pay", value: "Php " + n(grossPay) },
+    { label: "Net Pay Due", value: "Php " + n(netPay), accent: "green" },
+  ], cs, compact)
+
+  y = drawOfficialTable(
+    doc,
+    margin,
+    contentW,
+    y,
+    "COMPUTATION TABLE",
+    tableRows,
+    cs,
+    undefined,
+    { useBlackText: true, compact: true, rowStretch: fill.rowStretch },
+  )
+
+  drawOfficialSignatories(doc, margin, contentW, fill.signatoriesY, signatoryBlocks, cs, compact)
+  drawOfficialFooter(doc, pageW, margin, contentW, fill.footerY, footerNote, issued, cs, undefined, compact)
 }
 
 export async function exportPayrollPdf(

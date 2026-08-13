@@ -22,6 +22,7 @@ export function getDailyEarned(
 export function computeDailyPayroll(inputs: PayrollInputs): PayrollResult {
   const { monthlyRate, workingDays, periodStart, periodEnd, lateMinutes, undertimeMinutes, absentDays } = inputs
   const overpayment = round(inputs.overpayment ?? 0)
+  const underpayment = round(inputs.underpayment ?? 0)
 
   const periodWorkingDays = computeWorkingDaysInRange(periodStart, periodEnd)
   const dailyRate = round(monthlyRate / workingDays)
@@ -36,8 +37,9 @@ export function computeDailyPayroll(inputs: PayrollInputs): PayrollResult {
   const total = round(Math.max(0, earned - absentDeduction - lateDeduction - undertimeDeduction))
   const premium = round(total * PREMIUM_RATE)
   const overpaymentPremium = round(overpayment * PREMIUM_RATE)
+  const underpaymentPremium = round(underpayment * PREMIUM_RATE)
 
-  const grossPay = round(total + premium - overpayment - overpaymentPremium)
+  const grossPay = round(total + premium - overpayment - overpaymentPremium + underpayment + underpaymentPremium)
   const taxableIncome = round(Math.max(0, grossPay - SEMI_MONTHLY_EXEMPTION))
   const additionalTax = round(inputs.additionalTax ?? 0)
   const baseTax = taxableIncome > 0 ? round(taxableIncome * TAX_RATE) : 0
@@ -58,6 +60,8 @@ export function computeDailyPayroll(inputs: PayrollInputs): PayrollResult {
     grossPay,
     overpayment,
     overpaymentPremium,
+    underpayment,
+    underpaymentPremium,
     absentDeduction,
     lateDeduction,
     undertimeDeduction,

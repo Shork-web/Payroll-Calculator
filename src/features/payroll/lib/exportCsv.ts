@@ -1,4 +1,5 @@
 import type { PayrollEntry } from "@/features/payroll/types/payroll"
+import { computationTypeLabel } from "@/features/payroll/lib/computationTypeLabels"
 import { formatPayPeriod } from "@/shared/lib/format"
 
 export function exportPayrollCsv(entries: PayrollEntry[]): void {
@@ -6,7 +7,7 @@ export function exportPayrollCsv(entries: PayrollEntry[]): void {
     "Employee Name",
     "Position",
     "Pay Period",
-    "Computation Mode",
+    "Pay Computation Basis",
     "Monthly Rate",
     "Working Days",
     "Period Working Days",
@@ -30,15 +31,7 @@ export function exportPayrollCsv(entries: PayrollEntry[]): void {
   const rows = entries.map(entry => {
     const { employee, inputs, result } = entry
     const period = formatPayPeriod(inputs.periodStart, inputs.periodEnd)
-    const modeLabel = result.computationType === "daily"
-      ? "Daily"
-      : result.computationType === "monthly"
-        ? "Monthly"
-        : result.computationType === "monthly-no-tax"
-          ? "Monthly (No Tax)"
-          : result.computationType === "semi-monthly-no-tax"
-            ? "Semi-Monthly (No Tax)"
-            : "Semi-Monthly"
+    const modeLabel = computationTypeLabel(result.computationType)
     
     const displayGross = result.total + result.premium
     const baseTax = Math.max(0, result.tax - (inputs.additionalTax ?? 0))

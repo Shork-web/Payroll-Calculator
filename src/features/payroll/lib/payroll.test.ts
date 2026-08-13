@@ -17,6 +17,7 @@ describe("computePayroll", () => {
       lateMinutes: 7,
       absentDays: 0,
       overpayment: 1_227.3,
+      underpayment: 0,
       computationType: "semi-monthly",
       additionalTax: 0,
     })
@@ -42,6 +43,7 @@ describe("computePayroll", () => {
       lateMinutes: 0,
       absentDays: 0,
       overpayment: 0,
+      underpayment: 0,
       computationType: "semi-monthly",
       additionalTax: 0,
     })
@@ -62,6 +64,7 @@ describe("computePayroll", () => {
       lateMinutes: 0,
       absentDays: 1,
       overpayment: 0,
+      underpayment: 0,
       computationType: "semi-monthly",
       additionalTax: 0,
     })
@@ -81,6 +84,7 @@ describe("computePayroll", () => {
       lateMinutes: 0,
       absentDays: 0,
       overpayment: 1_200,
+      underpayment: 0,
       computationType: "semi-monthly",
       additionalTax: 0,
     })
@@ -91,6 +95,24 @@ describe("computePayroll", () => {
     expect(result.netPay).toBe(14_542.83)
   })
 
+  it("adds underpayment and 20% premium on underpayment to gross", () => {
+    const result = computePayroll({
+      monthlyRate: 27_000,
+      workingDays: 22,
+      ...MAY_FIRST_CUTOFF,
+      lateMinutes: 0,
+      absentDays: 0,
+      overpayment: 0,
+      underpayment: 1_200,
+      computationType: "semi-monthly-no-tax",
+      additionalTax: 0,
+    })
+
+    expect(result.underpaymentPremium).toBe(240)
+    expect(result.grossPay).toBe(17_640)
+    expect(result.netPay).toBe(17_640)
+  })
+
   it("charges zero tax when gross is below the semi-monthly exemption", () => {
     const result = computePayroll({
       monthlyRate: 15_000,
@@ -99,6 +121,7 @@ describe("computePayroll", () => {
       lateMinutes: 0,
       absentDays: 0,
       overpayment: 5_000,
+      underpayment: 0,
       undertimeMinutes: 0,
       computationType: "semi-monthly",
       additionalTax: 0,
@@ -120,6 +143,7 @@ describe("computePayroll", () => {
       undertimeMinutes: 15,
       absentDays: 0,
       overpayment: 0,
+      underpayment: 0,
       computationType: "semi-monthly",
       additionalTax: 0,
     })
@@ -140,6 +164,7 @@ describe("computePayroll", () => {
       lateMinutes: 7,
       absentDays: 0,
       overpayment: 1_227.3,
+      underpayment: 0,
       computationType: "daily",
       additionalTax: 0,
     })
@@ -163,6 +188,7 @@ describe("computePayroll", () => {
       lateMinutes: 0,
       absentDays: 0,
       overpayment: 0,
+      underpayment: 0,
       computationType: "daily",
       additionalTax: 0,
     })
@@ -180,6 +206,7 @@ describe("computePayroll", () => {
       lateMinutes: 0,
       absentDays: 0,
       overpayment: 0,
+      underpayment: 0,
       computationType: "semi-monthly",
       additionalTax: 500,
     })
@@ -197,6 +224,7 @@ describe("computePayroll", () => {
       lateMinutes: 7,
       absentDays: 0,
       overpayment: 1_227.3,
+      underpayment: 0,
       computationType: "monthly",
       additionalTax: 0,
     })
@@ -220,6 +248,7 @@ describe("computePayroll", () => {
       lateMinutes: 7,
       absentDays: 0,
       overpayment: 1_227.3,
+      underpayment: 0,
       computationType: "monthly-no-tax",
       additionalTax: 0,
     })
@@ -247,6 +276,7 @@ describe("payrollSchema overpayment validation", () => {
       lateMinutes: 0,
       absentDays: 0,
       overpayment: 20_000,
+      underpayment: 0,
     })
 
     expect(result.success).toBe(false)
@@ -267,6 +297,7 @@ describe("payrollSchema overpayment validation", () => {
       lateMinutes: 0,
       absentDays: 0,
       overpayment: 20_000,
+      underpayment: 0,
       computationType: "daily",
     })
 
@@ -288,6 +319,7 @@ describe("payrollSchema overpayment validation", () => {
       lateMinutes: 0,
       absentDays: 0,
       overpayment: 35_000,
+      underpayment: 0,
       computationType: "monthly",
       additionalTax: 0,
     })
@@ -310,6 +342,7 @@ describe("payrollSchema overpayment validation", () => {
       lateMinutes: 0,
       absentDays: 0,
       overpayment: 35_000,
+      underpayment: 0,
       computationType: "monthly-no-tax",
       additionalTax: 0,
     })

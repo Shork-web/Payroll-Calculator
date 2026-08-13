@@ -5,6 +5,7 @@ import { useConfirmDialog } from "@/shared/hooks/useConfirmDialog"
 import { computeWorkingDaysInRange } from "@/features/payroll/lib/workingDays"
 import type { PayrollFormInput } from "@/features/payroll/lib/schema"
 import type { SavedEmployee } from "@/lib/db"
+import { COMPUTATION_TYPE_OPTIONS } from "@/features/payroll/lib/computationTypeLabels"
 import { FormSection } from "./FormSection"
 import { FormTextField } from "./FormTextField"
 import { mergeFieldSlotProps } from "./fieldStyles"
@@ -138,18 +139,18 @@ export function EmployeeProfileSection({ savedEmployees = [], onDeleteEmployee }
                 {...field}
                 id="computationType"
                 select
-                label="Computation mode"
+                label="Pay computation basis"
                 size="small"
                 fullWidth
                 error={!!errors.computationType?.message}
-                helperText={errors.computationType?.message}
+                helperText={errors.computationType?.message ?? "How base pay and tax are calculated"}
                 slotProps={mergeFieldSlotProps({ inputLabel: { shrink: true } })}
               >
-                <MenuItem value="semi-monthly">Semi-monthly</MenuItem>
-                <MenuItem value="semi-monthly-no-tax">Semi-monthly (no tax)</MenuItem>
-                <MenuItem value="daily">Daily</MenuItem>
-                <MenuItem value="monthly">Monthly</MenuItem>
-                <MenuItem value="monthly-no-tax">Monthly (no tax)</MenuItem>
+                {COMPUTATION_TYPE_OPTIONS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
               </TextField>
             )}
           />

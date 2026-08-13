@@ -1,4 +1,5 @@
 import type { PayrollResult } from "@/features/payroll/types/payroll"
+import { computationTypeLabel } from "@/features/payroll/lib/computationTypeLabels"
 import { PHILFIDA_GREEN, scaleMm, type PdfDoc } from "@/lib/exports/pdfShared"
 
 export { PHILFIDA_GREEN }
@@ -31,6 +32,7 @@ export function drawOfficialPhilfidaHeader(
   startY: number,
   options: OfficialHeaderOptions,
   scale = 1,
+  compact = false,
 ): number {
   const s = (v: number) => scaleMm(v, scale)
   const contentW = pageW - pageMargin * 2
@@ -38,7 +40,7 @@ export function drawOfficialPhilfidaHeader(
   const centerX = pageW / 2
   const headerY = startY
 
-  const logoH = s(22)
+  const logoH = s(compact ? 16 : 22)
   const logoW = Math.min(logoH * logoAspectRatio, s(48))
   doc.addImage(logoUrl, "PNG", pageMargin, headerY, logoW, logoH)
 
@@ -81,27 +83,27 @@ export function drawOfficialPhilfidaHeader(
   doc.setTextColor(...PHILFIDA_SLATE)
   doc.text("Official Payroll Computation & Certification", centerX, textY, { align: "center" })
 
-  let y = headerY + logoH + s(4)
+  let y = headerY + logoH + s(compact ? 2.5 : 4)
 
   doc.setDrawColor(...PHILFIDA_GREEN)
   doc.setLineWidth(s(0.45))
   doc.line(pageMargin, y, rm, y)
 
-  y += s(5)
+  y += s(compact ? 3.5 : 5)
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(s(13.5))
+  doc.setFontSize(s(compact ? 11 : 13.5))
   doc.setTextColor(15, 23, 42)
   doc.text(options.documentTitle, centerX, y, { align: "center", maxWidth: contentW })
 
   if (options.documentSubtitle) {
-    y += s(4)
+    y += s(compact ? 3 : 4)
     doc.setFont("helvetica", "normal")
-    doc.setFontSize(s(9))
+    doc.setFontSize(s(compact ? 8 : 9))
     doc.setTextColor(...PHILFIDA_SLATE)
     doc.text(options.documentSubtitle, centerX, y, { align: "center", maxWidth: contentW })
   }
 
-  y += s(5)
+  y += s(compact ? 3 : 5)
 
   const metadata = options.metadata ?? []
   if (metadata.length === 0) {
@@ -158,15 +160,20 @@ export function drawOfficialSectionHeader(
   y: number,
   title: string,
   scale = 1,
+  compact = false,
 ): number {
   const s = (v: number) => scaleMm(v, scale)
+  const barH = s(compact ? 4 : 5)
+  const headerH = s(compact ? 5.5 : 6.5)
+
   doc.setFillColor(...PHILFIDA_GREEN)
-  doc.rect(pageMargin, y - s(3.5), s(2.5), s(5), "F")
+  doc.rect(pageMargin, y, s(2.5), barH, "F")
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(s(9.5))
+  doc.setFontSize(s(compact ? 8 : 9.5))
   doc.setTextColor(15, 23, 42)
-  doc.text(title, pageMargin + s(5), y)
-  return y + s(6)
+  doc.text(title, pageMargin + s(5), y + barH * 0.72)
+
+  return y + headerH
 }
 
 export function drawProfilePanel(
@@ -177,17 +184,18 @@ export function drawProfilePanel(
   employeeName: string,
   fields: Array<{ label: string; value: string }>,
   scale = 1,
+  compact = false,
 ): number {
   const s = (v: number) => scaleMm(v, scale)
   const cols = 3
   const colW = contentW / cols
-  const cellPad = s(4)
+  const cellPad = s(compact ? 3 : 4)
   const cellMaxW = colW - cellPad * 2
-  const labelLineH = s(3.5)
-  const valueLineH = s(3.8)
+  const labelLineH = s(compact ? 3 : 3.5)
+  const valueLineH = s(compact ? 3.2 : 3.8)
 
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(s(11))
+  doc.setFontSize(s(compact ? 9.5 : 11))
   const nameLines = doc.splitTextToSize(employeeName.toUpperCase(), contentW - cellPad * 2)
   const nameBlockH = s(5) + nameLines.length * valueLineH
 
@@ -208,7 +216,7 @@ export function drawProfilePanel(
     rowHeights.push(maxH)
   }
 
-  const panelH = s(5) + nameBlockH + s(3) + rowHeights.reduce((sum, h) => sum + h, 0) + s(3)
+  const panelH = s(compact ? 3 : 5) + nameBlockH + s(compact ? 2 : 3) + rowHeights.reduce((sum, h) => sum + h, 0) + s(compact ? 2 : 3)
   doc.setDrawColor(203, 213, 225)
   doc.setLineWidth(s(0.3))
   doc.rect(pageMargin, y, contentW, panelH)
@@ -248,7 +256,7 @@ export function drawProfilePanel(
     drawTextLines(doc, valueLines, fx, fy + labelLineH, valueLineH)
   })
 
-  return y + panelH + s(4)
+  return y + panelH + s(compact ? 2 : 4)
 }
 
 export function drawMetricCards(
@@ -258,11 +266,12 @@ export function drawMetricCards(
   y: number,
   cards: Array<{ label: string; value: string; accent?: "green" | "default" }>,
   scale = 1,
+  compact = false,
 ): number {
   const s = (v: number) => scaleMm(v, scale)
-  const gap = s(3)
+  const gap = s(compact ? 2 : 3)
   const cardW = (contentW - gap * (cards.length - 1)) / cards.length
-  const cardH = s(15)
+  const cardH = s(compact ? 10 : 15)
 
   cards.forEach((card, i) => {
     const cx = pageMargin + i * (cardW + gap)
@@ -272,12 +281,12 @@ export function drawMetricCards(
     doc.roundedRect(cx, y, cardW, cardH, s(1), s(1), "FD")
 
     doc.setFont("helvetica", "normal")
-    doc.setFontSize(s(7))
+    doc.setFontSize(s(compact ? 6 : 7))
     doc.setTextColor(...PHILFIDA_SLATE)
-    doc.text(card.label.toUpperCase(), cx + cardW / 2, y + s(4.5), { align: "center" })
+    doc.text(card.label.toUpperCase(), cx + cardW / 2, y + s(compact ? 3.5 : 4.5), { align: "center" })
 
     doc.setFont("helvetica", "bold")
-    doc.setFontSize(s(10.5))
+    doc.setFontSize(s(compact ? 8.5 : 10.5))
     if (card.accent === "green") {
       doc.setTextColor(...PHILFIDA_GREEN)
     } else {
@@ -285,13 +294,13 @@ export function drawMetricCards(
     }
     const valueLines = doc.splitTextToSize(card.value, cardW - s(4))
     const valueBlockH = valueLines.length * s(3.8)
-    const valueY = y + s(10) + Math.max(0, (s(5) - valueBlockH) / 2)
+    const valueY = y + s(compact ? 7 : 10) + Math.max(0, (s(compact ? 3 : 5) - valueBlockH) / 2)
     valueLines.forEach((line: string, li: number) => {
       doc.text(line, cx + cardW / 2, valueY + li * s(3.8), { align: "center" })
     })
   })
 
-  return y + cardH + s(5)
+  return y + cardH + s(compact ? 4 : 5)
 }
 
 export interface PdfPageBreakContext {
@@ -300,7 +309,7 @@ export interface PdfPageBreakContext {
   onNewPage: () => void
 }
 
-export type TableRowType = "earning" | "deduction" | "total" | "neutral"
+export type TableRowType = "earning" | "deduction" | "total" | "neutral" | "section"
 
 export interface OfficialTableRow {
   index: string
@@ -309,6 +318,13 @@ export interface OfficialTableRow {
   amount: string
   rowType?: TableRowType
   isBold?: boolean
+}
+
+export interface DrawOfficialTableOptions {
+  useBlackText?: boolean
+  compact?: boolean
+  /** Extra height (mm at baseline scale) added to each table row to fill the page. */
+  rowStretch?: number
 }
 
 export function drawOfficialTable(
@@ -320,20 +336,23 @@ export function drawOfficialTable(
   rows: OfficialTableRow[],
   scale = 1,
   pageBreak?: PdfPageBreakContext,
+  options: DrawOfficialTableOptions = {},
 ): number {
+  const { useBlackText = false, compact = false, rowStretch = 0 } = options
+  const blackText: [number, number, number] = [15, 23, 42]
   const s = (v: number) => scaleMm(v, scale)
-  y = drawOfficialSectionHeader(doc, pageMargin, y, title, scale)
+  y = drawOfficialSectionHeader(doc, pageMargin, y, title, scale, compact)
 
   const rm = pageMargin + contentW
-  const colIndexW = s(10)
-  const amountColW = s(34)
-  const typeColW = s(28)
-  const colDescW = contentW - colIndexW - typeColW - amountColW - s(6)
+  const colIndexW = s(compact ? 7 : 10)
+  const amountColW = s(compact ? 26 : 34)
+  const typeColW = s(compact ? 20 : 28)
+  const colDescW = contentW - colIndexW - typeColW - amountColW - s(compact ? 4 : 6)
   const colDescX = pageMargin + colIndexW + s(2)
-  const colTypeX = pageMargin + colIndexW + colDescW + s(4)
+  const colTypeX = pageMargin + colIndexW + colDescW + s(compact ? 2 : 4)
   const colIndexCenterX = pageMargin + colIndexW / 2
-  const headerH = s(7)
-  const minRowH = s(6.5)
+  const headerH = s(compact ? 5 : 7)
+  const minRowH = s(compact ? 4 : 6.5)
   const descMaxW = colDescW - s(2)
   const typeMaxW = typeColW - s(2)
   let segmentTopY = y
@@ -344,17 +363,17 @@ export function drawOfficialTable(
 
     const headers = ["#", "DESCRIPTION", "TYPE", "AMOUNT (PHP)"]
     doc.setFont("helvetica", "bold")
-    doc.setFontSize(s(8.5))
+    doc.setFontSize(s(compact ? 7 : 8.5))
     doc.setTextColor(255, 255, 255)
     headers.forEach((h, i) => {
       if (i === headers.length - 1) {
-        doc.text(h, rm - s(3), y + s(5.2), { align: "right" })
+        doc.text(h, rm - s(3), y + s(compact ? 3.5 : 5.2), { align: "right" })
       } else if (i === 0) {
-        doc.text(h, colIndexCenterX, y + s(5.2), { align: "center" })
+        doc.text(h, colIndexCenterX, y + s(compact ? 3.5 : 5.2), { align: "center" })
       } else if (i === 1) {
-        doc.text(h, colDescX, y + s(5.2))
+        doc.text(h, colDescX, y + s(compact ? 3.5 : 5.2))
       } else {
-        doc.text(h, colTypeX, y + s(5.2))
+        doc.text(h, colTypeX, y + s(compact ? 3.5 : 5.2))
       }
     })
 
@@ -364,13 +383,21 @@ export function drawOfficialTable(
   drawTableHeader()
 
   rows.forEach((row, rowIndex) => {
-    doc.setFont("helvetica", row.isBold || row.rowType === "total" ? "bold" : "normal")
-    doc.setFontSize(row.rowType === "total" ? s(10) : s(9))
-    const descLines = doc.splitTextToSize(row.description, descMaxW)
-    const typeLines = doc.splitTextToSize(row.category, typeMaxW)
-    const textLineH = s(4)
-    const textBlockH = Math.max(descLines.length, typeLines.length) * textLineH
-    const thisRowH = Math.max(minRowH, s(3) + textBlockH)
+    const isSection = row.rowType === "section"
+    const isTotal = row.rowType === "total"
+    doc.setFont("helvetica", row.isBold || isTotal || isSection ? "bold" : "normal")
+    doc.setFontSize(
+      isTotal ? s(compact ? 8 : 10)
+        : isSection ? s(compact ? 6.5 : 8)
+          : s(compact ? 7 : 9),
+    )
+    const descLines = doc.splitTextToSize(row.description, isSection ? contentW - s(8) : descMaxW)
+    const typeLines = isSection ? [] : doc.splitTextToSize(row.category, typeMaxW)
+    const textLineH = s(compact ? 3 : 4)
+    const textBlockH = Math.max(descLines.length, typeLines.length || 1) * textLineH
+    const thisRowH = (isSection
+      ? s(compact ? 3.5 : 6)
+      : Math.max(minRowH, s(compact ? 2 : 3) + textBlockH)) + scaleMm(rowStretch, scale)
 
     if (pageBreak && y + thisRowH > pageBreak.maxContentY) {
       doc.setDrawColor(203, 213, 225)
@@ -383,10 +410,12 @@ export function drawOfficialTable(
       drawTableHeader()
     }
 
-    const isTotal = row.rowType === "total"
-    const isShaded = rowIndex % 2 === 0 && !isTotal
+    const isShaded = !isSection && !isTotal && rowIndex % 2 === 0
 
-    if (isTotal) {
+    if (isSection) {
+      doc.setFillColor(241, 245, 249)
+      doc.rect(pageMargin, y, contentW, thisRowH, "F")
+    } else if (isTotal) {
       doc.setFillColor(...PHILFIDA_MUTED)
       doc.rect(pageMargin, y, contentW, thisRowH, "F")
     } else if (isShaded) {
@@ -394,26 +423,42 @@ export function drawOfficialTable(
       doc.rect(pageMargin, y, contentW, thisRowH, "F")
     }
 
-    const textY = y + s(4)
-    doc.setFont("helvetica", row.isBold || isTotal ? "bold" : "normal")
-    doc.setFontSize(isTotal ? s(10) : s(9))
-    doc.setTextColor(15, 23, 42)
-    doc.text(row.index, colIndexCenterX, textY, { align: "center" })
-    drawTextLines(doc, descLines, colDescX, textY, textLineH)
+    const textY = y + (rowStretch > 0 && !isSection
+      ? Math.max(s(compact ? 3 : 4), (thisRowH - textBlockH) / 2)
+      : s(isSection ? (compact ? 2.6 : 3.8) : (compact ? 3 : 4)))
+    doc.setFont("helvetica", row.isBold || isTotal || isSection ? "bold" : "normal")
+    doc.setFontSize(
+      isTotal ? s(compact ? 8 : 10)
+        : isSection ? s(compact ? 6.5 : 8)
+          : s(compact ? 7 : 9),
+    )
 
-    const typeColor = row.rowType === "earning"
-      ? PHILFIDA_BLUE
-      : row.rowType === "deduction"
-        ? PHILFIDA_ORANGE
-        : row.rowType === "total"
-          ? PHILFIDA_GREEN
-          : PHILFIDA_SLATE
-    doc.setTextColor(...typeColor)
-    drawTextLines(doc, typeLines, colTypeX, textY, textLineH)
+    if (isSection) {
+      doc.setTextColor(71, 85, 105)
+      drawTextLines(doc, descLines, colDescX, textY, textLineH)
+    } else {
+      doc.setTextColor(15, 23, 42)
+      if (row.index) {
+        doc.text(row.index, colIndexCenterX, textY, { align: "center" })
+      }
+      drawTextLines(doc, descLines, colDescX, textY, textLineH)
 
-    doc.setFont("helvetica", row.isBold || isTotal ? "bold" : "normal")
-    doc.setTextColor(...typeColor)
-    doc.text(row.amount, rm - s(3), textY, { align: "right" })
+      const typeColor: [number, number, number] = useBlackText
+        ? blackText
+        : row.rowType === "earning"
+          ? PHILFIDA_BLUE
+          : row.rowType === "deduction"
+            ? PHILFIDA_ORANGE
+            : row.rowType === "total"
+              ? PHILFIDA_GREEN
+              : PHILFIDA_SLATE
+      doc.setTextColor(...typeColor)
+      drawTextLines(doc, typeLines, colTypeX, textY, textLineH)
+
+      doc.setFont("helvetica", row.isBold || isTotal ? "bold" : "normal")
+      doc.setTextColor(...typeColor)
+      doc.text(row.amount, rm - s(3), textY, { align: "right" })
+    }
 
     doc.setDrawColor(241, 245, 249)
     doc.setLineWidth(s(0.2))
@@ -426,7 +471,7 @@ export function drawOfficialTable(
   doc.setLineWidth(s(0.35))
   doc.rect(pageMargin, segmentTopY, contentW, y - segmentTopY)
 
-  return y + s(4)
+  return y + s(compact ? 2 : 4)
 }
 
 export function drawOfficialSignatories(
@@ -436,41 +481,57 @@ export function drawOfficialSignatories(
   y: number,
   blocks: Array<{ label: string; name: string; title: string }>,
   scale = 1,
+  compact = false,
 ): number {
   const s = (v: number) => scaleMm(v, scale)
-  y = drawOfficialSectionHeader(doc, pageMargin, y, "OFFICIAL SIGNATORIES & CERTIFICATION", scale)
+  y = drawOfficialSectionHeader(doc, pageMargin, y, "OFFICIAL SIGNATORIES & CERTIFICATION", scale, compact)
+  y += s(compact ? 3 : 4)
 
   const blockW = contentW / blocks.length
+  const labelLineH = s(compact ? 3.8 : 4)
+  const gapLabelToLine = s(compact ? 5 : 6)
+  const gapLineToName = s(compact ? 5 : 6)
+  const nameLineH = s(compact ? 3.6 : 4)
+  const gapNameToTitle = s(compact ? 2.5 : 3.5)
+  const titleLineH = s(compact ? 3.4 : 3.8)
+  let maxBlockH = 0
+
   blocks.forEach((block, i) => {
     const bx = pageMargin + i * blockW + s(4)
     const lineW = Math.min(blockW - s(10), s(72))
     const textMaxW = blockW - s(8)
 
     doc.setFont("helvetica", "normal")
-    doc.setFontSize(s(8.5))
+    doc.setFontSize(s(compact ? 7.5 : 8.5))
     doc.setTextColor(...PHILFIDA_SLATE)
     const labelLines = doc.splitTextToSize(block.label, textMaxW)
-    drawTextLines(doc, labelLines, bx, y, s(3.5))
+    drawTextLines(doc, labelLines, bx, y, labelLineH)
 
-    const labelOffset = labelLines.length * s(3.5)
+    const labelOffset = labelLines.length * labelLineH
+    const lineY = y + labelOffset + gapLabelToLine
     doc.setDrawColor(15, 23, 42)
     doc.setLineWidth(s(0.35))
-    doc.line(bx, y + labelOffset + s(4), bx + lineW, y + labelOffset + s(4))
+    doc.line(bx, lineY, bx + lineW, lineY)
 
     doc.setFont("helvetica", "bold")
-    doc.setFontSize(s(9.5))
+    doc.setFontSize(s(compact ? 8.5 : 9.5))
     doc.setTextColor(15, 23, 42)
     const nameLines = doc.splitTextToSize(block.name.toUpperCase(), textMaxW)
-    drawTextLines(doc, nameLines, bx, y + labelOffset + s(8), s(3.8))
+    const nameY = lineY + gapLineToName
+    drawTextLines(doc, nameLines, bx, nameY, nameLineH)
 
     doc.setFont("helvetica", "normal")
-    doc.setFontSize(s(8.5))
+    doc.setFontSize(s(compact ? 7.5 : 8.5))
     doc.setTextColor(...PHILFIDA_SLATE)
     const titleLines = doc.splitTextToSize(block.title, textMaxW)
-    drawTextLines(doc, titleLines, bx, y + labelOffset + s(8) + nameLines.length * s(3.8) + s(1), s(3.5))
+    const titleY = nameY + nameLines.length * nameLineH + gapNameToTitle
+    drawTextLines(doc, titleLines, bx, titleY, titleLineH)
+
+    const blockH = titleY + titleLines.length * titleLineH - y
+    maxBlockH = Math.max(maxBlockH, blockH)
   })
 
-  return y + s(28)
+  return y + maxBlockH + s(compact ? 6 : 10)
 }
 
 export function drawOfficialFooter(
@@ -483,57 +544,303 @@ export function drawOfficialFooter(
   issuedDate?: string,
   scale = 1,
   disclaimer = "This computation certifies Contract of Service compensation for the pay period stated above, including base pay, the 20% premium, attendance adjustments, and applicable deductions. It is prepared for payroll processing, official certification, and employee conforme.",
+  compact = false,
 ): void {
   const s = (v: number) => scaleMm(v, scale)
   const rm = pageMargin + contentW
+  const lineH = s(compact ? 3.5 : 4)
+
+  y += s(compact ? 4 : 5)
   doc.setDrawColor(226, 232, 240)
   doc.setLineWidth(s(0.3))
   doc.line(pageMargin, y, rm, y)
 
-  y += s(5)
+  y += s(compact ? 5 : 6)
   if (issuedDate) {
     doc.setFont("helvetica", "normal")
-    doc.setFontSize(s(8.5))
+    doc.setFontSize(s(compact ? 7.5 : 8.5))
     doc.setTextColor(15, 23, 42)
     doc.text(`Date Issued: ${issuedDate}`, rm, y, { align: "right" })
-    y += s(4.5)
+    y += s(compact ? 5 : 6)
   }
 
   doc.setFont("helvetica", "italic")
-  doc.setFontSize(s(8))
+  doc.setFontSize(s(compact ? 7 : 8))
   doc.setTextColor(...PHILFIDA_SLATE)
 
   if (note) {
     const noteLines = doc.splitTextToSize(note, contentW)
     noteLines.forEach((line: string) => {
       doc.text(line, pageW / 2, y, { align: "center" })
-      y += s(3.5)
+      y += lineH
     })
-    y += s(1.5)
+    y += s(compact ? 3 : 4)
   }
 
   const lines = doc.splitTextToSize(disclaimer, contentW)
   lines.forEach((line: string) => {
     doc.text(line, pageW / 2, y, { align: "center" })
-    y += s(3.5)
+    y += lineH
   })
 }
 
-export interface PayslipLineItem {
-  label: string
-  amount: string
-  detail?: string
-  emphasis?: "normal" | "bold" | "subtotal"
+const DEFAULT_COMPUTATION_FOOTER_DISCLAIMER =
+  "This computation certifies Contract of Service compensation for the pay period stated above, including base pay, the 20% premium, attendance adjustments, and applicable deductions. It is prepared for payroll processing, official certification, and employee conforme."
+
+function tableLayoutMetrics(contentW: number, scale: number, compact: boolean) {
+  const s = (v: number) => scaleMm(v, scale)
+  const colIndexW = s(compact ? 7 : 10)
+  const amountColW = s(compact ? 26 : 34)
+  const typeColW = s(compact ? 20 : 28)
+  const colDescW = contentW - colIndexW - typeColW - amountColW - s(compact ? 4 : 6)
+  return {
+    s,
+    descMaxW: colDescW - s(2),
+    typeMaxW: typeColW - s(2),
+    headerH: s(compact ? 5 : 7),
+    minRowH: s(compact ? 4 : 6.5),
+    textLineH: s(compact ? 3 : 4),
+    sectionRowH: s(compact ? 3.5 : 6),
+    padRow: s(compact ? 2 : 3),
+  }
 }
 
-/** Two-column earnings / deductions ledger for official payslips. */
-export function drawPayslipLedger(
+function measureTableRowHeight(
+  doc: PdfDoc,
+  row: OfficialTableRow,
+  contentW: number,
+  scale: number,
+  compact: boolean,
+  rowStretch = 0,
+): number {
+  const { s, descMaxW, typeMaxW, minRowH, textLineH, sectionRowH, padRow } = tableLayoutMetrics(contentW, scale, compact)
+  const isSection = row.rowType === "section"
+  doc.setFont("helvetica", row.isBold || row.rowType === "total" || isSection ? "bold" : "normal")
+  doc.setFontSize(
+    row.rowType === "total" ? s(compact ? 8 : 10)
+      : isSection ? s(compact ? 6.5 : 8)
+        : s(compact ? 7 : 9),
+  )
+  const descLines = doc.splitTextToSize(row.description, isSection ? contentW - s(8) : descMaxW)
+  const typeLines = isSection ? [] : doc.splitTextToSize(row.category, typeMaxW)
+  const textBlockH = Math.max(descLines.length, typeLines.length || 1) * textLineH
+  const base = isSection ? sectionRowH : Math.max(minRowH, padRow + textBlockH)
+  return base + scaleMm(rowStretch, scale)
+}
+
+export function estimateOfficialPhilfidaHeaderHeight(scale: number, compact = false): number {
+  const s = (v: number) => scaleMm(v, scale)
+  const logoH = s(compact ? 16 : 22)
+  return logoH + s(compact ? 19 : 26)
+}
+
+export function estimateOfficialSectionHeaderHeight(scale: number, compact = false): number {
+  const s = (v: number) => scaleMm(v, scale)
+  return s(compact ? 5.5 : 6.5)
+}
+
+export function estimateProfilePanelHeight(
+  doc: PdfDoc,
+  contentW: number,
+  employeeName: string,
+  fields: Array<{ label: string; value: string }>,
+  scale: number,
+  compact = false,
+): number {
+  const s = (v: number) => scaleMm(v, scale)
+  const cols = 3
+  const colW = contentW / cols
+  const cellPad = s(compact ? 3 : 4)
+  const cellMaxW = colW - cellPad * 2
+  const labelLineH = s(compact ? 3 : 3.5)
+  const valueLineH = s(compact ? 3.2 : 3.8)
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(s(compact ? 9.5 : 11))
+  const nameLines = doc.splitTextToSize(employeeName.toUpperCase(), contentW - cellPad * 2)
+  const nameBlockH = s(5) + nameLines.length * valueLineH
+
+  const rowCount = Math.ceil(fields.length / cols)
+  const rowHeights: number[] = []
+  for (let row = 0; row < rowCount; row++) {
+    let maxH = s(8)
+    for (let col = 0; col < cols; col++) {
+      const idx = row * cols + col
+      if (idx >= fields.length) break
+      const field = fields[idx]
+      if (!field) break
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(s(8.5))
+      const valueLines = doc.splitTextToSize(field.value, cellMaxW)
+      maxH = Math.max(maxH, labelLineH + valueLines.length * valueLineH + s(1))
+    }
+    rowHeights.push(maxH)
+  }
+
+  const panelH = s(compact ? 3 : 5) + nameBlockH + s(compact ? 2 : 3)
+    + rowHeights.reduce((sum, h) => sum + h, 0) + s(compact ? 2 : 3)
+  return panelH + s(compact ? 2 : 4)
+}
+
+export function estimateMetricCardsHeight(scale: number, compact = false): number {
+  const s = (v: number) => scaleMm(v, scale)
+  return s(compact ? 10 : 15) + s(compact ? 4 : 5)
+}
+
+export function estimateOfficialTableHeight(
+  doc: PdfDoc,
+  contentW: number,
+  rows: OfficialTableRow[],
+  scale: number,
+  compact = false,
+  rowStretch = 0,
+): number {
+  const { s, headerH } = tableLayoutMetrics(contentW, scale, compact)
+  let height = estimateOfficialSectionHeaderHeight(scale, compact) + headerH
+  rows.forEach((row) => {
+    height += measureTableRowHeight(doc, row, contentW, scale, compact, rowStretch)
+  })
+  return height + s(compact ? 2 : 4)
+}
+
+export function estimateOfficialSignatoriesHeight(
+  doc: PdfDoc,
+  contentW: number,
+  blocks: Array<{ label: string; name: string; title: string }>,
+  scale: number,
+  compact = false,
+): number {
+  const s = (v: number) => scaleMm(v, scale)
+  const labelLineH = s(compact ? 3.8 : 4)
+  const gapLabelToLine = s(compact ? 5 : 6)
+  const gapLineToName = s(compact ? 5 : 6)
+  const nameLineH = s(compact ? 3.6 : 4)
+  const gapNameToTitle = s(compact ? 2.5 : 3.5)
+  const titleLineH = s(compact ? 3.4 : 3.8)
+  let maxBlockH = 0
+  const blockW = contentW / blocks.length
+  blocks.forEach((block) => {
+    const textMaxW = blockW - s(8)
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(s(compact ? 7.5 : 8.5))
+    const labelLines = doc.splitTextToSize(block.label, textMaxW)
+    const labelOffset = labelLines.length * labelLineH
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(s(compact ? 8.5 : 9.5))
+    const nameLines = doc.splitTextToSize(block.name.toUpperCase(), textMaxW)
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(s(compact ? 7.5 : 8.5))
+    const titleLines = doc.splitTextToSize(block.title, textMaxW)
+    const blockH = labelOffset + gapLabelToLine + gapLineToName
+      + nameLines.length * nameLineH + gapNameToTitle
+      + titleLines.length * titleLineH
+    maxBlockH = Math.max(maxBlockH, blockH)
+  })
+  return estimateOfficialSectionHeaderHeight(scale, compact)
+    + s(compact ? 3 : 4)
+    + maxBlockH
+    + s(compact ? 6 : 10)
+}
+
+export function estimateOfficialFooterHeight(
+  doc: PdfDoc,
+  contentW: number,
+  note: string | undefined,
+  scale: number,
+  compact = false,
+  disclaimer = DEFAULT_COMPUTATION_FOOTER_DISCLAIMER,
+): number {
+  const s = (v: number) => scaleMm(v, scale)
+  const lineH = s(compact ? 3.5 : 4)
+  let height = s(compact ? 4 : 5) + s(compact ? 5 : 6) + s(compact ? 5 : 6)
+  doc.setFont("helvetica", "italic")
+  doc.setFontSize(s(compact ? 7 : 8))
+  if (note?.trim()) {
+    height += doc.splitTextToSize(note, contentW).length * lineH + s(compact ? 3 : 4)
+  }
+  height += doc.splitTextToSize(disclaimer, contentW).length * lineH
+  return height
+}
+
+export interface ComputationPageFillLayout {
+  scale: number
+  rowStretch: number
+  signatoriesY: number
+  footerY: number
+}
+
+/** Sizes computation PDF content to fill one page; table rows expand to use remaining space. */
+export function computeComputationPageFillLayout(
+  doc: PdfDoc,
+  pageH: number,
+  margin: number,
+  contentW: number,
+  baseScale: number,
+  tableRows: OfficialTableRow[],
+  profileFields: Array<{ label: string; value: string }>,
+  employeeName: string,
+  signatoryBlocks: Array<{ label: string; name: string; title: string }>,
+  footerNote: string | undefined,
+  compact = true,
+): ComputationPageFillLayout {
+  const available = pageH - margin * 2
+  let cs = baseScale
+  let rowStretch = 0
+
+  const measure = (stretch: number) => {
+    const top = estimateOfficialPhilfidaHeaderHeight(cs, compact)
+      + estimateOfficialSectionHeaderHeight(cs, compact)
+      + estimateProfilePanelHeight(doc, contentW, employeeName, profileFields, cs, compact)
+      + estimateMetricCardsHeight(cs, compact)
+    const table = estimateOfficialTableHeight(doc, contentW, tableRows, cs, compact, stretch)
+    const sig = estimateOfficialSignatoriesHeight(doc, contentW, signatoryBlocks, cs, compact)
+    const footer = estimateOfficialFooterHeight(doc, contentW, footerNote, cs, compact)
+    return { top, table, sig, footer, total: top + table + sig + footer }
+  }
+
+  for (let i = 0; i < 10; i++) {
+    const dims = measure(0)
+    if (dims.total > available) {
+      cs *= 0.94
+      continue
+    }
+    if (dims.total < available * 0.985 && cs < baseScale * 1.15) {
+      cs *= 1.03
+      continue
+    }
+    break
+  }
+
+  const dims = measure(0)
+  const tableBudget = Math.max(0, available - dims.top - dims.sig - dims.footer)
+  if (tableRows.length > 0 && dims.table < tableBudget) {
+    rowStretch = (tableBudget - dims.table) / (tableRows.length * cs)
+  }
+
+  const finalDims = measure(rowStretch)
+  const footerY = pageH - margin - finalDims.footer
+  const signatoriesY = footerY - finalDims.sig
+
+  return { scale: cs, rowStretch, signatoriesY, footerY }
+}
+
+export interface PayslipSplitRow {
+  leftLabel?: string
+  leftAmount?: string
+  leftBold?: boolean
+  rightLabel?: string
+  rightAmount?: string
+  rightBold?: boolean
+  rightDetail?: string
+}
+
+/** Classic side-by-side earnings / deductions table with official PhilFIDA styling. */
+export function drawPayslipSplitTable(
   doc: PdfDoc,
   pageMargin: number,
   contentW: number,
   y: number,
-  earnings: PayslipLineItem[],
-  deductions: PayslipLineItem[],
+  rows: PayslipSplitRow[],
   netPay: string,
   scale = 1,
 ): number {
@@ -541,125 +848,102 @@ export function drawPayslipLedger(
   y = drawOfficialSectionHeader(doc, pageMargin, y, "PAY ADVICE — EARNINGS & DEDUCTIONS", scale)
 
   const halfW = contentW / 2
-  const leftX = pageMargin
-  const rightX = pageMargin + halfW
+  const midCol = pageMargin + halfW
+  const rm = pageMargin + contentW
   const pad = s(3.5)
   const headerH = s(7)
-  const minRowH = s(7)
-  const labelMaxW = halfW - pad * 2 - s(30)
+  const dataRowH = s(7)
+  const netRowH = s(9)
   const tableTop = y
+  const tableH = headerH + dataRowH * rows.length + netRowH
+
+  doc.setDrawColor(...PHILFIDA_GREEN)
+  doc.setLineWidth(s(0.45))
+  doc.rect(pageMargin, tableTop, contentW, tableH)
 
   doc.setFillColor(...PHILFIDA_NAVY)
-  doc.rect(leftX, y, halfW, headerH, "F")
-  doc.rect(rightX, y, halfW, headerH, "F")
+  doc.rect(pageMargin, y, contentW, headerH, "F")
+
   doc.setFont("helvetica", "bold")
   doc.setFontSize(s(8.5))
   doc.setTextColor(255, 255, 255)
-  doc.text("EARNINGS (PHP)", leftX + halfW / 2, y + s(5.2), { align: "center" })
-  doc.text("DEDUCTIONS (PHP)", rightX + halfW / 2, y + s(5.2), { align: "center" })
+  doc.text("EARNINGS", pageMargin + pad, y + s(5))
+  doc.text("DEDUCTIONS", midCol + pad, y + s(5))
   y += headerH
 
-  const measureSide = (items: PayslipLineItem[]): number[] => {
-    return items.map((item) => {
-      const emphasis = item.emphasis ?? "normal"
-      doc.setFont("helvetica", emphasis === "bold" || emphasis === "subtotal" ? "bold" : "normal")
-      doc.setFontSize(emphasis === "subtotal" ? s(9.5) : s(8.5))
-      const labelLines = doc.splitTextToSize(item.label, labelMaxW)
-      let h = labelLines.length * s(3.6) + s(2)
-      if (item.detail?.trim()) {
-        doc.setFontSize(s(7))
-        h += doc.splitTextToSize(item.detail, labelMaxW).length * s(3.2) + s(0.5)
-      }
-      return Math.max(minRowH, h)
-    })
-  }
+  const leftAmtX = midCol - pad
+  const rightAmtX = rm - pad
+  const leftLabelX = pageMargin + pad
+  const rightLabelX = midCol + pad
 
-  const leftHeights = measureSide(earnings)
-  const rightHeights = measureSide(deductions)
-  const rowCount = Math.max(earnings.length, deductions.length, 1)
-
-  const drawSideItem = (
-    item: PayslipLineItem | undefined,
-    x: number,
-    rowY: number,
-    rowH: number,
-    amtX: number,
-    shaded: boolean,
-  ) => {
-    if (!item) {
-      if (shaded) {
-        doc.setFillColor(252, 252, 253)
-        doc.rect(x, rowY, halfW, rowH, "F")
-      }
-      return
-    }
-
-    const emphasis = item.emphasis ?? "normal"
-    if (emphasis === "subtotal") {
-      doc.setFillColor(...PHILFIDA_MUTED)
-      doc.rect(x, rowY, halfW, rowH, "F")
-    } else if (shaded) {
+  rows.forEach((row, index) => {
+    const shaded = index % 2 === 0
+    if (shaded) {
       doc.setFillColor(252, 252, 253)
-      doc.rect(x, rowY, halfW, rowH, "F")
+      doc.rect(pageMargin, y, contentW, dataRowH, "F")
     }
 
-    let textY = rowY + s(4)
-    doc.setFont("helvetica", emphasis === "bold" || emphasis === "subtotal" ? "bold" : "normal")
-    doc.setFontSize(emphasis === "subtotal" ? s(9.5) : s(8.5))
-    doc.setTextColor(15, 23, 42)
-    const labelLines = doc.splitTextToSize(item.label, labelMaxW)
-    drawTextLines(doc, labelLines, x + pad, textY, s(3.6))
-    textY += labelLines.length * s(3.6)
-
-    if (item.detail?.trim()) {
-      doc.setFont("helvetica", "normal")
-      doc.setFontSize(s(7))
-      doc.setTextColor(...PHILFIDA_SLATE)
-      const detailLines = doc.splitTextToSize(item.detail, labelMaxW)
-      drawTextLines(doc, detailLines, x + pad, textY, s(3.2))
+    if (row.leftLabel) {
+      doc.setFont("helvetica", row.leftBold ? "bold" : "normal")
+      doc.setFontSize(row.leftBold ? s(9.5) : s(8.5))
+      doc.setTextColor(15, 23, 42)
+      doc.text(row.leftLabel, leftLabelX, y + s(4.8))
+      if (row.leftAmount) {
+        doc.text(row.leftAmount, leftAmtX, y + s(4.8), { align: "right" })
+      }
     }
 
-    if (item.amount) {
-      doc.setFont("helvetica", emphasis === "bold" || emphasis === "subtotal" ? "bold" : "normal")
-      doc.setFontSize(emphasis === "subtotal" ? s(9.5) : s(8.5))
-      doc.setTextColor(...(emphasis === "subtotal" ? PHILFIDA_GREEN : [15, 23, 42] as [number, number, number]))
-      doc.text(item.amount, amtX, rowY + s(4.8), { align: "right" })
+    if (row.rightLabel) {
+      doc.setFont("helvetica", row.rightBold ? "bold" : "normal")
+      doc.setFontSize(row.rightBold ? s(9.5) : s(8.5))
+      doc.setTextColor(15, 23, 42)
+      doc.text(row.rightLabel, rightLabelX, y + s(4.8))
+
+      if (row.rightDetail?.trim()) {
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(s(7))
+        doc.setTextColor(...PHILFIDA_SLATE)
+        doc.text(row.rightDetail, rightLabelX, y + s(4.8) + s(3))
+      }
+
+      if (row.rightAmount !== undefined) {
+        doc.setFont("helvetica", row.rightBold ? "bold" : "normal")
+        doc.setFontSize(row.rightBold ? s(9.5) : s(8.5))
+        if (row.rightBold) {
+          doc.setTextColor(...PHILFIDA_GREEN)
+        } else {
+          doc.setTextColor(15, 23, 42)
+        }
+        doc.text(row.rightAmount || "—", rightAmtX, y + s(4.8), { align: "right" })
+      }
     }
-  }
 
-  for (let i = 0; i < rowCount; i++) {
-    const rowH = Math.max(leftHeights[i] ?? minRowH, rightHeights[i] ?? minRowH, minRowH)
-    const shaded = i % 2 === 0
-    drawSideItem(earnings[i], leftX, y, rowH, leftX + halfW - pad, shaded)
-    drawSideItem(deductions[i], rightX, y, rowH, pageMargin + contentW - pad, shaded)
-
-    doc.setDrawColor(241, 245, 249)
+    doc.setDrawColor(226, 232, 240)
     doc.setLineWidth(s(0.2))
-    doc.line(leftX, y + rowH, pageMargin + contentW, y + rowH)
-    y += rowH
-  }
+    doc.line(pageMargin, y + dataRowH, rm, y + dataRowH)
+    y += dataRowH
+  })
 
   doc.setDrawColor(203, 213, 225)
-  doc.setLineWidth(s(0.35))
-  doc.line(pageMargin + halfW, tableTop, pageMargin + halfW, y)
+  doc.setLineWidth(s(0.3))
+  doc.line(midCol, tableTop + headerH, midCol, tableTop + tableH - netRowH)
 
-  const netH = s(11)
-  doc.setFillColor(15, 23, 42)
-  doc.rect(pageMargin, y, contentW, netH, "F")
+  const netY = tableTop + tableH - netRowH
+  doc.setFillColor(...PHILFIDA_LIGHT)
+  doc.rect(midCol, netY, halfW, netRowH, "F")
+
+  doc.setDrawColor(226, 232, 240)
+  doc.setLineWidth(s(0.2))
+  doc.line(pageMargin, netY, rm, netY)
+
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(s(11))
-  doc.setTextColor(255, 255, 255)
-  doc.text("NET PAY DUE", pageMargin + pad, y + s(7))
+  doc.setFontSize(s(10))
   doc.setTextColor(...PHILFIDA_GREEN)
-  doc.setFontSize(s(12))
-  doc.text(`Php ${netPay}`, pageMargin + contentW - pad, y + s(7.2), { align: "right" })
+  doc.text("NET PAY", rightLabelX, netY + s(5.8))
+  doc.setFontSize(s(11))
+  doc.text(`Php ${netPay}`, rightAmtX, netY + s(5.8), { align: "right" })
 
-  y += netH
-  doc.setDrawColor(203, 213, 225)
-  doc.setLineWidth(s(0.35))
-  doc.rect(pageMargin, tableTop, contentW, y - tableTop)
-
-  return y + s(5)
+  return tableTop + tableH + s(5)
 }
 
 export const PAYSLIP_FOOTER_DISCLAIMER =
@@ -789,18 +1073,7 @@ export async function loadPhilfidaLogo(): Promise<string> {
 }
 
 export function computationModeLabel(computationType: PayrollResult["computationType"]): string {
-  switch (computationType) {
-    case "daily":
-      return "Daily"
-    case "monthly":
-      return "Monthly"
-    case "monthly-no-tax":
-      return "Monthly (No Tax)"
-    case "semi-monthly-no-tax":
-      return "Semi-Monthly (No Tax)"
-    default:
-      return "Semi-Monthly"
-  }
+  return computationTypeLabel(computationType)
 }
 
 export interface LetterheadOptions {

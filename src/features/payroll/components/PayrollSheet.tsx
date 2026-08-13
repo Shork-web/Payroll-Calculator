@@ -13,9 +13,10 @@ import {
 } from "@mui/icons-material"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { useConfirmDialog } from "@/shared/hooks/useConfirmDialog"
+import { formatPeso } from "@/shared/lib/format"
 import { PdfPaperSizeSelect } from "@/features/payroll/components/PdfPaperSizeSelect"
 import type { PayrollEntry, Signatory } from "@/features/payroll/types/payroll"
-import { formatPeso } from "@/shared/lib/format"
+import { computationTypeShortLabel } from "@/features/payroll/lib/computationTypeLabels"
 
 export interface PayrollSheetProps {
   entries: PayrollEntry[]
@@ -377,15 +378,7 @@ export function PayrollSheet({
               <TableBody>
                 {entries.map((entry) => {
                   const displayGross = entry.result.total + entry.result.premium
-                  const modeLabel = entry.result.computationType === "daily"
-                    ? "Daily"
-                    : entry.result.computationType === "monthly"
-                      ? "Monthly"
-                      : entry.result.computationType === "monthly-no-tax"
-                        ? "Monthly (No Tax)"
-                        : entry.result.computationType === "semi-monthly-no-tax"
-                          ? "Semi-Mo (No Tax)"
-                          : "Semi-Mo"
+                  const modeLabel = computationTypeShortLabel(entry.result.computationType)
                   const isSelected = selectedIds.includes(entry.id)
 
                   return (

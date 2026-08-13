@@ -2,15 +2,14 @@
 import type { EmployeeInfo, PayrollInputs, PayrollResult, PayrollEntry } from "@/features/payroll/types/payroll"
 import {
   computationModeLabel,
-  drawMetricCards,
   drawOfficialFooter,
   drawOfficialPhilfidaHeader,
   drawOfficialSignatories,
-  drawPayslipLedger,
+  drawPayslipSplitTable,
   drawProfilePanel,
   loadPhilfidaLogo,
   PAYSLIP_FOOTER_DISCLAIMER,
-  type PayslipLineItem,
+  type PayslipSplitRow,
 } from "@/lib/exports/pdfBranding"
 import {
   buildPayrollExportFilename,
@@ -24,114 +23,92 @@ import {
   type PdfPaperSize,
 } from "@/lib/exports/pdfShared"
 
+function formatAmount(value: number): string {
+  return value > 0 ? n(value) : "—"
+}
+
 function buildAttendanceDetail(inputs: PayrollInputs): string | undefined {
   const { absentDays, lateMinutes, undertimeMinutes } = inputs
   const parts: string[] = []
 
   if (absentDays > 0) {
-    parts.push(`${absentDays} absence${absentDays !== 1 ? "s" : ""}`)
+    parts.push(`${absentDays} day${absentDays !== 1 ? "s" : ""}`)
   }
   if (lateMinutes > 0) {
     parts.push(`${lateMinutes} min late`)
   }
   if ((undertimeMinutes ?? 0) > 0) {
-    parts.push(`${undertimeMinutes} min undertime`)
+    parts.push(`${undertimeMinutes} min UT`)
   }
 
   if (parts.length === 0) return undefined
-  return parts.join(" · ")
+  return parts.join(", ")
 }
 
-function buildTaxLabel(inputs: PayrollInputs, baseTax: number, addTax: number): string {
-  if (addTax <= 0) {
-    return baseTax > 0 ? "Withholding Tax (5%)" : "Withholding Tax"
-  }
-
-  const details: string[] = []
-  if (inputs.additionalTaxDate) details.push(inputs.additionalTaxDate)
-  if (inputs.additionalTaxReason) details.push(inputs.additionalTaxReason)
-  const suffix = details.length > 0 ? ` (${details.join(" — ")})` : ""
-  return `Additional Tax${suffix}`
-}
-
-function buildPayslipEarnings(
-  result: PayrollResult,
-  inputs: PayrollInputs,
-): PayslipLineItem[] {
-  const { earned, total, premium } = result
-  const { monthlyRate } = inputs
-  const displayGross = total + premium
-
-  const items: PayslipLineItem[] = [
-    { label: "Monthly Rate (Reference)", amount: n(monthlyRate) },
-    { label: "Earned for the Period", amount: n(earned) },
-    { label: "Add: 20% Premium", amount: n(premium) },
-    { label: "Gross Pay", amount: n(displayGross), emphasis: "subtotal" },
-  ]
-
-  return items
-}
-
-function buildPayslipDeductions(
-  result: PayrollResult,
-  inputs: PayrollInputs,
-): PayslipLineItem[] {
+function buildPayslipTableRows(result: PayrollResult, inputs: PayrollInputs): PayslipSplitRow[] {
   const {
-    absentDeduction,
-    lateDeduction,
-    undertimeDeduction,
+    earned,
+    total,
+    premium,
     tax,
     overpayment,
     overpaymentPremium,
+    underpayment,
+    underpaymentPremium,
     totalDeductions,
+    absentDeduction,
+    lateDeduction,
+    undertimeDeduction,
   } = result
-
+  const { monthlyRate } = inputs
+  const displayGross = total + premium
   const aluCost = absentDeduction + lateDeduction + undertimeDeduction
   const attendanceDetail = buildAttendanceDetail(inputs)
-  const addTax = inputs.additionalTax ?? 0
-  const baseTax = Math.max(0, tax - addTax)
 
-  const items: PayslipLineItem[] = []
+  const rows: PayslipSplitRow[] = [
+    {
+      leftLabel: "Rate / Month",
+      leftAmount: n(monthlyRate),
+      rightLabel: "Absent / Late / Undertime",
+      rightAmount: formatAmount(aluCost),
+    },
+    {
+      leftLabel: "Earned for the Period",
+      leftAmount: n(earned),
+      rightLabel: "Withholding Tax",
+      rightAmount: formatAmount(tax),
+    },
+    {
+      leftLabel: "20% COS Premium",
+      leftAmount: n(premium),
+      rightLabel: "Overpayment Recovery",
+      rightAmount: formatAmount(overpayment),
+    },
+    {
+      leftLabel: "Underpayment Adjustment",
+      leftAmount: formatAmount(underpayment),
+      rightLabel: "Overpayment Premium",
+      rightAmount: formatAmount(overpaymentPremium),
+    },
+    {
+      leftLabel: "Underpayment Premium",
+      leftAmount: formatAmount(underpaymentPremium),
+    },
+    {
+      leftLabel: "Gross Pay",
+      leftAmount: n(displayGross),
+      leftBold: true,
+      rightLabel: "Total Deductions",
+      rightAmount: n(totalDeductions),
+      rightBold: true,
+    },
+  ]
 
-  if (attendanceDetail || aluCost > 0) {
-    const row: PayslipLineItem = {
-      label: "Absent / Late / Undertime",
-      amount: aluCost > 0 ? n(aluCost) : "—",
-    }
-    if (attendanceDetail) row.detail = attendanceDetail
-    items.push(row)
+  if (attendanceDetail && rows[0]) {
+    rows[0].rightDetail = attendanceDetail
   }
 
-  if (baseTax > 0) {
-    items.push({ label: "Withholding Tax (5%)", amount: n(baseTax) })
-  }
-
-  if (addTax > 0) {
-    items.push({
-      label: buildTaxLabel(inputs, baseTax, addTax),
-      amount: n(addTax),
-    })
-  }
-
-  if (overpayment > 0) {
-    items.push({ label: "Overpayment Deduction", amount: n(overpayment) })
-  }
-
-  if (overpaymentPremium > 0) {
-    items.push({ label: "Overpayment (Premium Portion)", amount: n(overpaymentPremium) })
-  }
-
-  if (items.length === 0) {
-    items.push({ label: "No deductions applied", amount: "0.00" })
-  }
-
-  items.push({
-    label: "Total Deductions",
-    amount: n(totalDeductions),
-    emphasis: "subtotal",
-  })
-
-  return items
+  return rows
 }
 
 function buildPayslipSignatories(employee: EmployeeInfo): Array<{ label: string; name: string; title: string }> {
@@ -178,7 +155,7 @@ function renderPayslipPage(
     day: "numeric",
   })
 
-  const { dailyRate, hourlyRate, earned, netPay, totalDeductions } = result
+  const { dailyRate, hourlyRate, netPay } = result
   const { monthlyRate, workingDays } = inputs
 
   const { pageW, margin, contentW, scale, startY } = createPdfPageLayout(doc)
@@ -214,19 +191,12 @@ function renderPayslipPage(
 
   y = drawProfilePanel(doc, margin, contentW, y, employee.name, profileFields, scale)
 
-  y = drawMetricCards(doc, margin, contentW, y, [
-    { label: "Earned for Period", value: "Php " + n(earned) },
-    { label: "Total Deductions", value: "Php " + n(totalDeductions) },
-    { label: "Net Pay Due", value: "Php " + n(netPay), accent: "green" },
-  ], scale)
-
-  y = drawPayslipLedger(
+  y = drawPayslipSplitTable(
     doc,
     margin,
     contentW,
     y,
-    buildPayslipEarnings(result, inputs),
-    buildPayslipDeductions(result, inputs),
+    buildPayslipTableRows(result, inputs),
     n(netPay),
     scale,
   )
