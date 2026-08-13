@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { ThemeProvider } from "@/components/ThemeProvider";
-import { AuthProvider } from "@/context/AuthContext";
+import { ThemeProvider } from "@/shared/components/ThemeProvider";
+import { AuthProvider } from "@/shared/context/AuthContext";
+import { ToastProvider } from "@/shared/context/ToastContext";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -20,9 +21,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={inter.className}>
       <body>
         <ThemeProvider defaultTheme="light" storageKey="phifida-payroll-theme">
-          <AuthProvider>
-            {children}
-          </AuthProvider>
+          <ToastProvider>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

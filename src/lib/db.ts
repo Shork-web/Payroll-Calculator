@@ -1,4 +1,4 @@
-import { db } from "./firebase"
+import { db } from "@/shared/lib/firebase"
 import {
   collection,
   doc,
@@ -9,7 +9,8 @@ import {
   query,
   writeBatch,
 } from "firebase/firestore"
-import type { PayrollEntry, Signatory, SavedDtr } from "@/types/payroll"
+import type { PayrollEntry, Signatory } from "@/features/payroll/types/payroll"
+import type { SavedDtr } from "@/features/dtr/types/dtr"
 
 export interface SavedEmployee {
   id: string
