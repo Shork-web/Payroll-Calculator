@@ -42,7 +42,7 @@ export function exportPayrollCsv(entries: PayrollEntry[]): void {
       employee.position,
       period,
       modeLabel,
-      result.computationType === "daily" ? 0 : inputs.monthlyRate,
+      result.computationType === "daily" || result.computationType === "daily-no-tax" ? 0 : inputs.monthlyRate,
       inputs.workingDays,
       result.periodWorkingDays,
       result.earned,

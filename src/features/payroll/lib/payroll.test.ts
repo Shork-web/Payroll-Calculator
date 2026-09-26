@@ -76,6 +76,29 @@ describe("computePayroll", () => {
     expect(result.grossPay).toBe(14_727.28)
   })
 
+  it("calculates half day absent (0.5 days) deduction accurately", () => {
+    const result = computePayroll({
+      monthlyRate: 27_000,
+      workingDays: 22,
+      periodStart: "2026-03-01",
+      periodEnd: "2026-03-15",
+      lateMinutes: 0,
+      absentDays: 0.5,
+      overpayment: 0,
+      underpayment: 0,
+      computationType: "semi-monthly",
+      additionalTax: 0,
+    })
+
+    expect(result.earned).toBe(13_500)
+    expect(result.dailyRate).toBe(1_227.27)
+    expect(result.absentDeduction).toBe(613.64)
+    expect(result.total).toBe(12_886.36)
+    expect(result.premium).toBe(2_577.27)
+    expect(result.grossPay).toBe(15_463.63)
+    expect(result.netPay).toBe(15_211.28)
+  })
+
   it("deducts overpayment and 20% premium on overpayment from gross", () => {
     const result = computePayroll({
       monthlyRate: 27_000,
@@ -196,6 +219,33 @@ describe("computePayroll", () => {
     expect(result.dailyRate).toBe(1_227.27)
     expect(result.periodWorkingDays).toBe(11)
     expect(result.earned).toBe(13_500.00)
+  })
+
+  it("computes daily payroll without tax correctly", () => {
+    const result = computePayroll({
+      monthlyRate: 27_000,
+      workingDays: 21,
+      ...MAY_FIRST_CUTOFF,
+      lateMinutes: 7,
+      absentDays: 0,
+      overpayment: 1_227.3,
+      underpayment: 0,
+      computationType: "daily-no-tax",
+      additionalTax: 0,
+    })
+
+    expect(result.dailyRate).toBe(1_285.71)
+    expect(result.periodWorkingDays).toBe(11)
+    expect(result.earned).toBe(14_142.86)
+    expect(result.lateDeduction).toBe(18.76)
+    expect(result.total).toBe(14_124.10)
+    expect(result.premium).toBe(2_824.82)
+    expect(result.grossPay).toBe(15_476.16)
+    expect(result.taxableIncome).toBe(0)
+    expect(result.tax).toBe(0)
+    expect(result.totalDeductions).toBe(1_491.52)
+    expect(result.netPay).toBe(15_476.16)
+    expect(result.computationType).toBe("daily-no-tax")
   })
 
   it("applies additionalTax to deductions and net pay correctly", () => {

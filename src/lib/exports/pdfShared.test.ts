@@ -9,7 +9,7 @@ describe("pdfShared", () => {
 
   it("builds payroll export filenames from employee and period", () => {
     const filename = buildPayrollExportFilename(
-      { name: "Dela Cruz, Juan", position: "Clerk", periodStart: "2026-05-01", periodEnd: "2026-05-15" },
+      { name: "Dela Cruz, Juan", position: "Clerk", period: "May 1-15, 2026", periodStart: "2026-05-01", periodEnd: "2026-05-15" },
       {
         monthlyRate: 27000,
         workingDays: 21,

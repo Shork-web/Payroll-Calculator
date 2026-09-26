@@ -2,6 +2,7 @@ import type { PayrollInputs, PayrollResult } from "@/features/payroll/types/payr
 import { computeSemiMonthlyPayroll, getSemiMonthlyEarned } from "./calculations/semiMonthly"
 import { computeSemiMonthlyNoTaxPayroll, getSemiMonthlyNoTaxEarned } from "./calculations/semiMonthlyNoTax"
 import { computeDailyPayroll, getDailyEarned } from "./calculations/daily"
+import { computeDailyNoTaxPayroll, getDailyNoTaxEarned } from "./calculations/dailyNoTax"
 import { computeMonthlyPayroll, getMonthlyEarned } from "./calculations/monthly"
 import { computeMonthlyNoTaxPayroll, getMonthlyNoTaxEarned } from "./calculations/monthlyNoTax"
 import { round, roundUp, PREMIUM_RATE, SEMI_MONTHLY_EXEMPTION } from "./calculations/shared"
@@ -38,7 +39,7 @@ export function estimateGrossPay(input: PayrollComputationInput): number {
 /** Max overpayment before gross would be wiped. */
 export function estimateMaxOverpayment(
   monthlyRate: number,
-  computationType: "semi-monthly" | "daily" | "monthly" | "semi-monthly-no-tax" | "monthly-no-tax",
+  computationType: "semi-monthly" | "daily" | "daily-no-tax" | "monthly" | "semi-monthly-no-tax" | "monthly-no-tax",
   workingDays: number,
   periodStart: string,
   periodEnd: string
@@ -46,6 +47,8 @@ export function estimateMaxOverpayment(
   let earned = 0
   if (computationType === "daily") {
     earned = getDailyEarned(monthlyRate, workingDays, periodStart, periodEnd)
+  } else if (computationType === "daily-no-tax") {
+    earned = getDailyNoTaxEarned(monthlyRate, workingDays, periodStart, periodEnd)
   } else if (computationType === "monthly") {
     earned = getMonthlyEarned(monthlyRate)
   } else if (computationType === "monthly-no-tax") {
@@ -62,6 +65,8 @@ export function estimateMaxOverpayment(
 export function computePayroll(inputs: PayrollInputs): PayrollResult {
   if (inputs.computationType === "daily") {
     return computeDailyPayroll(inputs)
+  } else if (inputs.computationType === "daily-no-tax") {
+    return computeDailyNoTaxPayroll(inputs)
   } else if (inputs.computationType === "monthly") {
     return computeMonthlyPayroll(inputs)
   } else if (inputs.computationType === "monthly-no-tax") {

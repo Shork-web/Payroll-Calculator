@@ -46,7 +46,7 @@ interface DtrCreatorProps {
     lateMinutes: number
     undertimeMinutes: number
     absentDays: number
-    lateIncidents: Array<{ date: string; minutes: number; type: "late" | "undertime" | "absent"; days?: number }>
+    lateIncidents: Array<{ date: string; minutes: number; type: "late" | "undertime" | "absent" | "halfday" | "halfday-am" | "halfday-pm"; days?: number }>
   }) => void
 }
 
@@ -351,6 +351,22 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
             updated.pmOut = ""
             updated.location = ""
             updated.specialNote = ""
+          } else if (value === "absent-am") {
+            const defaults = getDefaultTimesForDay()
+            updated.amIn = ""
+            updated.amOut = ""
+            updated.pmIn = defaults.pmIn
+            updated.pmOut = defaults.pmOut
+            updated.location = ""
+            updated.specialNote = ""
+          } else if (value === "absent-pm") {
+            const defaults = getDefaultTimesForDay()
+            updated.amIn = defaults.amIn
+            updated.amOut = defaults.amOut
+            updated.pmIn = ""
+            updated.pmOut = ""
+            updated.location = ""
+            updated.specialNote = ""
           } else if (
             value === "weekend" ||
             value === "holiday" ||
@@ -415,6 +431,71 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
     showToast("Default schedule filled for weekdays!", "info")
   }
 
+  const handleApplySpecialPreset = (
+    dayNum: number,
+    preset: "middle" | "afternoon" | "morning" | "fullday"
+  ) => {
+    setDays((prev) =>
+      prev.map((log) => {
+        if (log.day !== dayNum) return log
+        const defaults = getDefaultTimesForDay()
+        const updated = { ...log }
+        if (preset === "middle") {
+          updated.amIn = defaults.amIn || "08:00"
+          updated.amOut = ""
+          updated.pmIn = ""
+          updated.pmOut = defaults.pmOut || "05:00"
+        } else if (preset === "afternoon") {
+          updated.amIn = defaults.amIn || "08:00"
+          updated.amOut = defaults.amOut || "12:00"
+          updated.pmIn = ""
+          updated.pmOut = ""
+        } else if (preset === "morning") {
+          updated.amIn = ""
+          updated.amOut = ""
+          updated.pmIn = defaults.pmIn || "01:00"
+          updated.pmOut = defaults.pmOut || "05:00"
+        } else if (preset === "fullday") {
+          updated.amIn = ""
+          updated.amOut = ""
+          updated.pmIn = ""
+          updated.pmOut = ""
+        }
+        const { lateMinutes, undertimeMinutes } = computeDayAdjustments(updated)
+        updated.lateMinutes = lateMinutes
+        updated.undertimeMinutes = undertimeMinutes
+        return updated
+      })
+    )
+  }
+
+  const getMergeHint = (log: DtrDayLog): string => {
+    const has0 = Boolean(log.amIn && log.amIn.trim() && log.amIn !== "-")
+    const has1 = Boolean(log.amOut && log.amOut.trim() && log.amOut !== "-")
+    const has2 = Boolean(log.pmIn && log.pmIn.trim() && log.pmIn !== "-")
+    const has3 = Boolean(log.pmOut && log.pmOut.trim() && log.pmOut !== "-")
+
+    if ((has0 && has3 && !has1 && !has2) || (has0 && has1 && has2 && has3)) {
+      return "💡 PDF Merges: Middle cells (AM Out & PM In)"
+    }
+    if (has0 && has1 && !has2 && !has3) {
+      return "💡 PDF Merges: Afternoon cells (PM In & PM Out)"
+    }
+    if (!has0 && !has1 && has2 && has3) {
+      return "💡 PDF Merges: Morning cells (AM In & AM Out)"
+    }
+    if (!has0 && !has1 && !has2 && !has3) {
+      return "💡 PDF Merges: Full row (All 4 cells)"
+    }
+    if (has0 && !has1 && !has2 && !has3) {
+      return "💡 PDF Merges: AM Out to PM Out"
+    }
+    if (!has0 && !has1 && !has2 && has3) {
+      return "💡 PDF Merges: AM In to PM In"
+    }
+    return "💡 PDF Merges: Empty time cells into note"
+  }
+
   // Totals calculations based on selected cutoff
   const totals = useMemo(() => {
     let lates = 0
@@ -431,8 +512,18 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
       if (inRange) {
         if (log.status === "absent") {
           absents += 1
-        } else if (log.status === "regular" || log.status === "special") {
-          regulars += 1
+        } else if (log.status === "absent-am" || log.status === "absent-pm") {
+          absents += 0.5
+          regulars += 0.5
+          lates += log.lateMinutes
+          undertimes += log.undertimeMinutes
+        } else if (
+          log.status === "regular" ||
+          log.status === "special" ||
+          log.status === "leave-cto-am" ||
+          log.status === "leave-cto-pm"
+        ) {
+          regulars += (log.status === "leave-cto-am" || log.status === "leave-cto-pm") ? 0.5 : 1
           lates += log.lateMinutes
           undertimes += log.undertimeMinutes
         }
@@ -459,7 +550,7 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
     const activeName = employeeName.trim() || "Employee"
     
     // Compile itemized incident log lines filtered by selected cutoff
-    const incidents: Array<{ date: string; minutes: number; type: "late" | "undertime" | "absent"; days?: number }> = []
+    const incidents: Array<{ date: string; minutes: number; type: "late" | "undertime" | "absent" | "halfday" | "halfday-am" | "halfday-pm"; days?: number }> = []
 
     days.forEach((log) => {
       const inRange =
@@ -471,7 +562,20 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
         const dateStr = `${monthLabel} ${log.day}`
         if (log.status === "absent") {
           incidents.push({ date: dateStr, minutes: 0, type: "absent", days: 1 })
-        } else if (log.status === "regular" || log.status === "special") {
+        } else if (log.status === "absent-am") {
+          incidents.push({ date: dateStr, minutes: 0, type: "halfday-am", days: 0.5 })
+          if (log.lateMinutes > 0) incidents.push({ date: dateStr, minutes: log.lateMinutes, type: "late" })
+          if (log.undertimeMinutes > 0) incidents.push({ date: dateStr, minutes: log.undertimeMinutes, type: "undertime" })
+        } else if (log.status === "absent-pm") {
+          incidents.push({ date: dateStr, minutes: 0, type: "halfday-pm", days: 0.5 })
+          if (log.lateMinutes > 0) incidents.push({ date: dateStr, minutes: log.lateMinutes, type: "late" })
+          if (log.undertimeMinutes > 0) incidents.push({ date: dateStr, minutes: log.undertimeMinutes, type: "undertime" })
+        } else if (
+          log.status === "regular" ||
+          log.status === "special" ||
+          log.status === "leave-cto-am" ||
+          log.status === "leave-cto-pm"
+        ) {
           if (log.lateMinutes > 0) {
             incidents.push({ date: dateStr, minutes: log.lateMinutes, type: "late" })
           }
@@ -930,8 +1034,8 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
               <TableBody>
                 {visibleDays.map((log) => {
                   const isRegular = log.status === "regular" || log.status === "special"
-                  const isAmEnabled = isRegular || log.status === "leave-cto-pm"
-                  const isPmEnabled = isRegular || log.status === "leave-cto-am"
+                  const isAmEnabled = isRegular || log.status === "leave-cto-pm" || log.status === "absent-pm"
+                  const isPmEnabled = isRegular || log.status === "leave-cto-am" || log.status === "absent-am"
                   return (
                     <React.Fragment key={log.day}>
                       <TableRow
@@ -941,7 +1045,7 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                               ? mode === "dark"
                                 ? "rgba(255,255,255,0.01)"
                                 : "grey.50"
-                              : log.status === "absent"
+                              : log.status === "absent" || log.status === "absent-am" || log.status === "absent-pm"
                               ? mode === "dark"
                                 ? "rgba(239, 68, 68, 0.05)"
                                 : "rgba(239, 68, 68, 0.02)"
@@ -976,7 +1080,9 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                             <MenuItem value="weekend">Weekend</MenuItem>
                             <MenuItem value="holiday">Holiday (Regular)</MenuItem>
                             <MenuItem value="special-holiday">Special Holiday</MenuItem>
-                            <MenuItem value="absent">Absent</MenuItem>
+                            <MenuItem value="absent">Absent (Full Day)</MenuItem>
+                            <MenuItem value="absent-am">Half Day Absent (AM)</MenuItem>
+                            <MenuItem value="absent-pm">Half Day Absent (PM)</MenuItem>
                             <MenuItem value="ob">Official Business (OB)</MenuItem>
                             <MenuItem value="special">Special Case (OB Partial)</MenuItem>
 
@@ -1055,6 +1161,118 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                               sx={{ fontStyle: "italic", input: { fontSize: "0.8rem", py: 0.2 } }}
                             />
                           </TableCell>
+                        ) : log.status === "absent-am" ? (
+                          <>
+                            <TableCell colSpan={2} align="center" sx={{ bgcolor: mode === "dark" ? "rgba(239, 68, 68, 0.08)" : "rgba(239, 68, 68, 0.04)" }}>
+                              <Typography variant="caption" sx={{ fontWeight: 700, color: "error.main", letterSpacing: 0.5 }}>
+                                ABSENT (MORNING)
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <TextField
+                                size="small"
+                                placeholder="01:00"
+                                value={log.pmIn}
+                                onChange={(e) => handleLogChange(log.day, "pmIn", e.target.value)}
+                                variant="standard"
+                                slotProps={{ input: { disableUnderline: true } }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <TextField
+                                size="small"
+                                placeholder="05:00"
+                                value={log.pmOut}
+                                onChange={(e) => handleLogChange(log.day, "pmOut", e.target.value)}
+                                variant="standard"
+                                slotProps={{ input: { disableUnderline: true } }}
+                              />
+                            </TableCell>
+                          </>
+                        ) : log.status === "absent-pm" ? (
+                          <>
+                            <TableCell>
+                              <TextField
+                                size="small"
+                                placeholder="08:00"
+                                value={log.amIn}
+                                onChange={(e) => handleLogChange(log.day, "amIn", e.target.value)}
+                                variant="standard"
+                                slotProps={{ input: { disableUnderline: true } }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <TextField
+                                size="small"
+                                placeholder="12:00"
+                                value={log.amOut}
+                                onChange={(e) => handleLogChange(log.day, "amOut", e.target.value)}
+                                variant="standard"
+                                slotProps={{ input: { disableUnderline: true } }}
+                              />
+                            </TableCell>
+                            <TableCell colSpan={2} align="center" sx={{ bgcolor: mode === "dark" ? "rgba(239, 68, 68, 0.08)" : "rgba(239, 68, 68, 0.04)" }}>
+                              <Typography variant="caption" sx={{ fontWeight: 700, color: "error.main", letterSpacing: 0.5 }}>
+                                ABSENT (AFTERNOON)
+                              </Typography>
+                            </TableCell>
+                          </>
+                        ) : log.status === "leave-cto-am" ? (
+                          <>
+                            <TableCell colSpan={2} align="center" sx={{ bgcolor: mode === "dark" ? "rgba(147, 51, 234, 0.08)" : "rgba(147, 51, 234, 0.04)" }}>
+                              <Typography variant="caption" sx={{ fontWeight: 700, color: "secondary.main", letterSpacing: 0.5 }}>
+                                CTO (MORNING)
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <TextField
+                                size="small"
+                                placeholder="01:00"
+                                value={log.pmIn}
+                                onChange={(e) => handleLogChange(log.day, "pmIn", e.target.value)}
+                                variant="standard"
+                                slotProps={{ input: { disableUnderline: true } }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <TextField
+                                size="small"
+                                placeholder="05:00"
+                                value={log.pmOut}
+                                onChange={(e) => handleLogChange(log.day, "pmOut", e.target.value)}
+                                variant="standard"
+                                slotProps={{ input: { disableUnderline: true } }}
+                              />
+                            </TableCell>
+                          </>
+                        ) : log.status === "leave-cto-pm" ? (
+                          <>
+                            <TableCell>
+                              <TextField
+                                size="small"
+                                placeholder="08:00"
+                                value={log.amIn}
+                                onChange={(e) => handleLogChange(log.day, "amIn", e.target.value)}
+                                variant="standard"
+                                slotProps={{ input: { disableUnderline: true } }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <TextField
+                                size="small"
+                                placeholder="12:00"
+                                value={log.amOut}
+                                onChange={(e) => handleLogChange(log.day, "amOut", e.target.value)}
+                                variant="standard"
+                                slotProps={{ input: { disableUnderline: true } }}
+                              />
+                            </TableCell>
+                            <TableCell colSpan={2} align="center" sx={{ bgcolor: mode === "dark" ? "rgba(147, 51, 234, 0.08)" : "rgba(147, 51, 234, 0.04)" }}>
+                              <Typography variant="caption" sx={{ fontWeight: 700, color: "secondary.main", letterSpacing: 0.5 }}>
+                                CTO (AFTERNOON)
+                              </Typography>
+                            </TableCell>
+                          </>
                         ) : (
                           <>
                             {/* AM IN */}
@@ -1062,7 +1280,7 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                               <TextField
                                 size="small"
                                 placeholder="08:00"
-                                value={log.status === "leave-cto-am" ? "CTO" : log.amIn}
+                                value={log.amIn}
                                 disabled={!isAmEnabled}
                                 onChange={(e) => handleLogChange(log.day, "amIn", e.target.value)}
                                 variant="standard"
@@ -1074,8 +1292,8 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                             <TableCell>
                               <TextField
                                 size="small"
-                                placeholder="12:00"
-                                value={log.status === "leave-cto-am" ? "CTO" : log.amOut}
+                                placeholder={log.status === "special" && log.specialNote ? "(Merged)" : "12:00"}
+                                value={log.amOut}
                                 disabled={!isAmEnabled}
                                 onChange={(e) => handleLogChange(log.day, "amOut", e.target.value)}
                                 variant="standard"
@@ -1087,8 +1305,8 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                             <TableCell>
                               <TextField
                                 size="small"
-                                placeholder="01:00"
-                                value={log.status === "leave-cto-pm" ? "CTO" : log.pmIn}
+                                placeholder={log.status === "special" && log.specialNote ? "(Merged)" : "01:00"}
+                                value={log.pmIn}
                                 disabled={!isPmEnabled}
                                 onChange={(e) => handleLogChange(log.day, "pmIn", e.target.value)}
                                 variant="standard"
@@ -1101,7 +1319,7 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                               <TextField
                                 size="small"
                                 placeholder="05:00"
-                                value={log.status === "leave-cto-pm" ? "CTO" : log.pmOut}
+                                value={log.pmOut}
                                 disabled={!isPmEnabled}
                                 onChange={(e) => handleLogChange(log.day, "pmOut", e.target.value)}
                                 variant="standard"
@@ -1130,20 +1348,58 @@ export function DtrCreator({ savedEmployees = [], onApplyDtr }: DtrCreatorProps)
                               : "rgba(124, 58, 237, 0.01)",
                           }}
                         >
-                          <TableCell colSpan={8} sx={{ pt: 0, pb: 1.5, px: 2 }}>
-                            <TextField
-                              size="small"
-                              label="📋 Special Case Details (e.g. 1-5 PM: Governor's Office, OB Travel)"
-                              placeholder="Describe the official travel or reason for the time gap..."
-                              value={log.specialNote || ""}
-                              onChange={(e) => handleLogChange(log.day, "specialNote", e.target.value)}
-                              fullWidth
-                              variant="outlined"
-                              sx={{
-                                "& .MuiInputLabel-root": { fontSize: "0.78rem" },
-                                "& .MuiOutlinedInput-root": { fontSize: "0.82rem" },
-                              }}
-                            />
+                          <TableCell colSpan={8} sx={{ pt: 0.5, pb: 1.5, px: 2 }}>
+                            <Stack spacing={1}>
+                              <TextField
+                                size="small"
+                                label="📋 Special Case Details (e.g. Attended DA Event, OB Travel)"
+                                placeholder="Describe the official travel or reason for the time gap..."
+                                value={log.specialNote || ""}
+                                onChange={(e) => handleLogChange(log.day, "specialNote", e.target.value)}
+                                fullWidth
+                                variant="outlined"
+                                sx={{
+                                  "& .MuiInputLabel-root": { fontSize: "0.78rem" },
+                                  "& .MuiOutlinedInput-root": { fontSize: "0.82rem" },
+                                }}
+                              />
+                              <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", gap: 0.5 }}>
+                                <Typography variant="caption" sx={{ fontSize: "0.72rem", color: "text.secondary", mr: 0.5 }}>
+                                  Merge Presets:
+                                </Typography>
+                                <Chip
+                                  label="Official Event (8 AM - 5 PM)"
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={() => handleApplySpecialPreset(log.day, "middle")}
+                                  sx={{ fontSize: "0.7rem", cursor: "pointer", height: 22 }}
+                                />
+                                <Chip
+                                  label="Afternoon OB (1 PM - 5 PM)"
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={() => handleApplySpecialPreset(log.day, "afternoon")}
+                                  sx={{ fontSize: "0.7rem", cursor: "pointer", height: 22 }}
+                                />
+                                <Chip
+                                  label="Morning OB (8 AM - 12 PM)"
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={() => handleApplySpecialPreset(log.day, "morning")}
+                                  sx={{ fontSize: "0.7rem", cursor: "pointer", height: 22 }}
+                                />
+                                <Chip
+                                  label="Full Day Note"
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={() => handleApplySpecialPreset(log.day, "fullday")}
+                                  sx={{ fontSize: "0.7rem", cursor: "pointer", height: 22 }}
+                                />
+                                <Typography variant="caption" sx={{ fontSize: "0.72rem", color: "primary.main", fontStyle: "italic", ml: "auto" }}>
+                                  {getMergeHint(log)}
+                                </Typography>
+                              </Stack>
+                            </Stack>
                           </TableCell>
                         </TableRow>
                       )}

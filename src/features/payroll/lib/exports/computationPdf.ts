@@ -1,4 +1,4 @@
-﻿import { formatPayPeriod } from "@/shared/lib/format"
+import { formatPayPeriod } from "@/shared/lib/format"
 import type { EmployeeInfo, PayrollInputs, PayrollResult, PayrollEntry } from "@/features/payroll/types/payroll"
 import {
   computationModeLabel,
@@ -47,7 +47,7 @@ function buildComputationRows(
   const formatAdditionAmount = (amount: number) => (amount > 0 ? n(amount) : n(0))
 
   const basePayDescription =
-    result.computationType === "daily"
+    result.computationType === "daily" || result.computationType === "daily-no-tax"
       ? `Base Pay (${n(dailyRate)} x ${result.periodWorkingDays} days)`
       : result.computationType === "monthly" || result.computationType === "monthly-no-tax"
         ? `Base Pay (Monthly Rate: ${n(monthlyRate)})`
@@ -98,7 +98,9 @@ function buildComputationRows(
   const addTax = inputs.additionalTax ?? 0
   const baseTax = Math.max(0, tax - addTax)
   const hasTax =
-    result.computationType !== "semi-monthly-no-tax" && result.computationType !== "monthly-no-tax"
+    result.computationType !== "semi-monthly-no-tax" &&
+    result.computationType !== "monthly-no-tax" &&
+    result.computationType !== "daily-no-tax"
 
   if (hasTax) {
     pushSection("D. TAX WITHHOLDING")
@@ -215,7 +217,7 @@ function renderPayrollComputationPage(
     { label: "Net Pay Due", value: "Php " + n(netPay), accent: "green" },
   ], cs, compact)
 
-  y = drawOfficialTable(
+  drawOfficialTable(
     doc,
     margin,
     contentW,

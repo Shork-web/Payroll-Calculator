@@ -23,7 +23,7 @@ export function PaySummary({ result, inputs, action }: PaySummaryProps) {
   const displayGross = result ? result.total + result.premium : undefined
 
   const earnedSubtitle = result
-    ? result.computationType === "daily"
+    ? result.computationType === "daily" || result.computationType === "daily-no-tax"
       ? `₱${formatPeso(result.dailyRate)} × ${result.periodWorkingDays} days`
       : result.computationType === "monthly" || result.computationType === "monthly-no-tax"
         ? "Monthly base"

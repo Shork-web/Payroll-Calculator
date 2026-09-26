@@ -8,6 +8,11 @@ import { RestartAlt as ResetIcon } from "@mui/icons-material"
 
 import { formatPayPeriod, getDefaultPayPeriod } from "@/shared/lib/format"
 import { computePayroll } from "@/features/payroll/lib/payroll"
+import {
+  absenceDaysForIncident,
+  isDayBasedAttendanceType,
+  type AttendanceIncidentType,
+} from "@/features/payroll/lib/attendanceIncidents"
 import { getMonthFromDateString, computeWeekdaysInMonth } from "@/features/payroll/lib/workingDays"
 import {
   payrollNumericSchema,
@@ -116,7 +121,7 @@ export function PayrollForm({
   const periodStartValue = watch("periodStart")
 
   useEffect(() => {
-    if ((computationTypeValue === "daily" || computationTypeValue === "monthly") && periodStartValue) {
+    if ((computationTypeValue === "daily" || computationTypeValue === "daily-no-tax" || computationTypeValue === "monthly" || computationTypeValue === "monthly-no-tax") && periodStartValue) {
       const { year, month } = getMonthFromDateString(periodStartValue)
       if (year > 0) {
         const weekdays = computeWeekdaysInMonth(year, month)
@@ -132,22 +137,22 @@ export function PayrollForm({
       const typedIncidents = rawIncidents
         .filter((item) => {
           const isTimeType = item.type === "late" || item.type === "undertime" || !item.type
-          const isAbsentType = item.type === "absent"
+          const isDayType = isDayBasedAttendanceType(item.type)
           return (
             item.date?.trim() &&
-            ((isTimeType && Number(item.minutes) > 0) || (isAbsentType && Number(item.days) > 0))
+            ((isTimeType && Number(item.minutes) > 0) || (isDayType && absenceDaysForIncident(item) > 0))
           )
         })
         .map((item) => ({
           date: item.date,
-          minutes: item.type === "absent" ? 0 : Number(item.minutes) || 0,
-          days: item.type === "absent" ? Number(item.days) || 0 : 0,
-          type: (item.type || "late") as "late" | "undertime" | "absent",
+          minutes: isDayBasedAttendanceType(item.type) ? 0 : Number(item.minutes) || 0,
+          days: absenceDaysForIncident(item),
+          type: (item.type || "late") as AttendanceIncidentType,
         }))
 
       const lateIncidentsOnly = typedIncidents.filter((item) => item.type === "late")
       const undertimeIncidentsOnly = typedIncidents.filter((item) => item.type === "undertime")
-      const absentIncidentsOnly = typedIncidents.filter((item) => item.type === "absent")
+      const absentIncidentsOnly = typedIncidents.filter((item) => isDayBasedAttendanceType(item.type))
 
       const totalLateMinutes = lateIncidentsOnly.reduce((sum, item) => sum + item.minutes, 0)
       const totalUndertimeMinutes = undertimeIncidentsOnly.reduce((sum, item) => sum + item.minutes, 0)
@@ -184,7 +189,13 @@ export function PayrollForm({
 
       const computedLateDates = lateIncidentsOnly.map((item) => `${item.date} (${item.minutes}m)`).join(", ")
       const computedUndertimeDates = undertimeIncidentsOnly.map((item) => `${item.date} (${item.minutes}m)`).join(", ")
-      const computedAbsentDates = absentIncidentsOnly.map((item) => `${item.date} (${item.days}d)`).join(", ")
+      const computedAbsentDates = absentIncidentsOnly
+        .map((item) => {
+          if (item.type === "halfday-am") return `${item.date} (Morning 0.5d)`
+          if (item.type === "halfday-pm") return `${item.date} (Afternoon 0.5d)`
+          return `${item.date} (${item.days}d)`
+        })
+        .join(", ")
 
       const payrollInputs = {
         ...numericParsed.data,

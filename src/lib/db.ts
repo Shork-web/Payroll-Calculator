@@ -17,7 +17,7 @@ export interface SavedEmployee {
   name: string
   position: string
   monthlyRate: number
-  computationType: "semi-monthly" | "daily" | "monthly" | "semi-monthly-no-tax" | "monthly-no-tax"
+  computationType: "semi-monthly" | "daily" | "daily-no-tax" | "monthly" | "semi-monthly-no-tax" | "monthly-no-tax"
   workingDays: number
   signatoryName?: string | undefined
   signatoryTitle?: string | undefined

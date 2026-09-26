@@ -226,6 +226,38 @@ describe("Office Hours Calculations", () => {
     })
   })
 
+  describe("Half-Day Absent Calculations", () => {
+    it("ignores morning late/undertime for absent-am, calculates afternoon late/undertime", () => {
+      const result = computeDayAdjustments({
+        day: 2,
+        dayName: "Tue",
+        amIn: "09:30", // late in morning, but ignored because absent-am
+        amOut: "11:30", // undertime in morning, but ignored because absent-am
+        pmIn: "01:10", // 10 mins late relative to 01:00 PM
+        pmOut: "04:50", // 10 mins undertime relative to 05:00 PM target
+        status: "absent-am",
+        lateMinutes: 0,
+        undertimeMinutes: 0,
+      })
+      expect(result).toEqual({ lateMinutes: 10, undertimeMinutes: 10 })
+    })
+
+    it("ignores afternoon late/undertime for absent-pm, calculates morning late/undertime", () => {
+      const result = computeDayAdjustments({
+        day: 3,
+        dayName: "Wed",
+        amIn: "09:05", // 5 mins late relative to 09:00 AM limit
+        amOut: "11:50", // 10 mins undertime relative to 12:00 PM target
+        pmIn: "02:00", // afternoon late, but ignored because absent-pm
+        pmOut: "04:00", // afternoon undertime, but ignored because absent-pm
+        status: "absent-pm",
+        lateMinutes: 0,
+        undertimeMinutes: 0,
+      })
+      expect(result).toEqual({ lateMinutes: 5, undertimeMinutes: 10 })
+    })
+  })
+
   describe("Holiday and Special Holiday Calculations", () => {
     it("returns 0 late and undertime for Holiday status", () => {
       const result = computeDayAdjustments({

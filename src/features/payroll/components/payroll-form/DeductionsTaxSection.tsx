@@ -10,7 +10,9 @@ export function DeductionsTaxSection() {
   const numberFieldOptions = { valueAsNumber: true }
   const computationTypeValue = watch("computationType")
   const showTax =
-    computationTypeValue !== "semi-monthly-no-tax" && computationTypeValue !== "monthly-no-tax"
+    computationTypeValue !== "semi-monthly-no-tax" &&
+    computationTypeValue !== "monthly-no-tax" &&
+    computationTypeValue !== "daily-no-tax"
 
   return (
     <FormSection title="Adjustments & tax" icon={<DeductionsIcon sx={{ fontSize: 16, color: "success.main" }} />}>

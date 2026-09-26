@@ -8,6 +8,7 @@ const sampleEntry: PayrollEntry = {
   employee: {
     name: "Juan Dela Cruz",
     position: "Clerk",
+    period: "May 1-15, 2026",
     periodStart: "2026-05-01",
     periodEnd: "2026-05-15",
     signatoryName: "Officer A",
@@ -69,11 +70,12 @@ describe("entryToFormValues", () => {
   })
 
   it("fills empty signatory and date fields with safe defaults", () => {
-    const minimalEntry: PayrollEntry = {
+    const minimalEntry = {
       ...sampleEntry,
       employee: {
         name: "Ana",
         position: "Staff",
+        period: "May 1-15, 2026",
         periodStart: "2026-05-01",
         periodEnd: "2026-05-15",
       },
@@ -84,7 +86,7 @@ describe("entryToFormValues", () => {
         computationType: undefined,
         additionalTax: undefined,
       },
-    }
+    } as unknown as PayrollEntry
 
     const form = entryToFormValues(minimalEntry)
     expect(form.signatoryName).toBe("")

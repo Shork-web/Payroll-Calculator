@@ -39,7 +39,7 @@ export const payrollNumericSchema = z.object({
 const lateIncidentSchema = z.object({
   minutes: coerceFormNumber().pipe(z.number().min(0)),
   date: z.string().min(1, "Date/Day is required"),
-  type: z.enum(["late", "undertime", "absent"]).default("late"),
+  type: z.enum(["late", "undertime", "absent", "halfday", "halfday-am", "halfday-pm"]).default("late"),
   days: coerceFormNumber().pipe(z.number().min(0)).default(0),
 })
 
@@ -70,7 +70,7 @@ export const payrollSchema = z
     lateDates: z.string().optional().default(""),
     undertimeDates: z.string().optional().default(""),
     lateIncidents: z.array(lateIncidentSchema).default([]),
-    computationType: z.enum(["semi-monthly", "semi-monthly-no-tax", "daily", "monthly", "monthly-no-tax"]).default("semi-monthly"),
+    computationType: z.enum(["semi-monthly", "semi-monthly-no-tax", "daily", "daily-no-tax", "monthly", "monthly-no-tax"]).default("semi-monthly"),
     additionalTax: coerceFormNumber().pipe(z.number().min(0)),
     additionalTaxDate: z.string().optional().default(""),
     additionalTaxReason: z.string().optional().default(""),
@@ -92,13 +92,15 @@ export const payrollSchema = z
       const label =
         data.computationType === "daily"
           ? "daily earned"
-          : data.computationType === "monthly"
-            ? "monthly earned"
-            : data.computationType === "semi-monthly-no-tax"
-              ? "semi-monthly earned (no tax)"
-              : data.computationType === "monthly-no-tax"
-                ? "monthly earned (no tax)"
-                : "semi-monthly earned"
+          : data.computationType === "daily-no-tax"
+            ? "daily earned (no tax)"
+            : data.computationType === "monthly"
+              ? "monthly earned"
+              : data.computationType === "semi-monthly-no-tax"
+                ? "semi-monthly earned (no tax)"
+                : data.computationType === "monthly-no-tax"
+                  ? "monthly earned (no tax)"
+                  : "semi-monthly earned"
       ctx.addIssue({
         code: "custom",
         message: `Overpayment cannot exceed ${label} plus premium (${formatPeso(maxOverpayment)})`,

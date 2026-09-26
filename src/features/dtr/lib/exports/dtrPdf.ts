@@ -1,4 +1,4 @@
-﻿import jsPDF from "jspdf"
+import jsPDF from "jspdf"
 
 import type { DtrDayLog } from "@/features/dtr/types/dtr"
 import { LEAVE_NAMES_MAP } from "@/features/dtr/lib/dtrConstants"
@@ -106,6 +106,279 @@ function drawRegion7CellTime(
   scaleY: number
 ) {
   doc.text(formatRegion7LogTime(time), x, y + 3.6 * scaleY, { align: "center" })
+}
+
+export interface DtrTimeSlotLayout {
+  drawLineL2: boolean
+  drawLineL3: boolean
+  drawLineL4: boolean
+  mergedIndices: Set<number> // 0: amIn, 1: amOut, 2: pmIn, 3: pmOut
+  mergedNote?: {
+    text: string
+    startX: number
+    endX: number
+    centerX: number
+    maxWidth: number
+  }
+}
+
+export function computeTimeSlotsLayout(
+  log: DtrDayLog,
+  l1: number,
+  l2: number,
+  l3: number,
+  l4: number,
+  l5: number,
+  scaleX: number,
+  uppercase = false
+): DtrTimeSlotLayout {
+  // If CTO AM: AM columns (amIn and amOut) are merged into "CTO", PM columns have normal times
+  if (log.status === "leave-cto-am") {
+    return {
+      drawLineL2: false,
+      drawLineL3: true,
+      drawLineL4: true,
+      mergedIndices: new Set([0, 1]),
+      mergedNote: {
+        text: "CTO",
+        startX: l1,
+        endX: l3,
+        centerX: (l1 + l3) / 2,
+        maxWidth: l3 - l1 - 2 * scaleX,
+      },
+    }
+  }
+
+  // If CTO PM: PM columns (pmIn and pmOut) are merged into "CTO", AM columns have normal times
+  if (log.status === "leave-cto-pm") {
+    return {
+      drawLineL2: true,
+      drawLineL3: true,
+      drawLineL4: false,
+      mergedIndices: new Set([2, 3]),
+      mergedNote: {
+        text: "CTO",
+        startX: l3,
+        endX: l5,
+        centerX: (l3 + l5) / 2,
+        maxWidth: l5 - l3 - 2 * scaleX,
+      },
+    }
+  }
+
+  // If Absent AM: AM columns (amIn and amOut) are merged into "ABSENT", PM columns have normal times
+  if (log.status === "absent-am") {
+    return {
+      drawLineL2: false,
+      drawLineL3: true,
+      drawLineL4: true,
+      mergedIndices: new Set([0, 1]),
+      mergedNote: {
+        text: uppercase ? "ABSENT" : "Absent",
+        startX: l1,
+        endX: l3,
+        centerX: (l1 + l3) / 2,
+        maxWidth: l3 - l1 - 2 * scaleX,
+      },
+    }
+  }
+
+  // If Absent PM: PM columns (pmIn and pmOut) are merged into "ABSENT", AM columns have normal times
+  if (log.status === "absent-pm") {
+    return {
+      drawLineL2: true,
+      drawLineL3: true,
+      drawLineL4: false,
+      mergedIndices: new Set([2, 3]),
+      mergedNote: {
+        text: uppercase ? "ABSENT" : "Absent",
+        startX: l3,
+        endX: l5,
+        centerX: (l3 + l5) / 2,
+        maxWidth: l5 - l3 - 2 * scaleX,
+      },
+    }
+  }
+
+  // If Special Case with a note:
+  if (log.status === "special" && log.specialNote && log.specialNote.trim()) {
+    const rawText = log.specialNote.trim()
+    const text = uppercase ? rawText.toUpperCase() : rawText
+
+    const has0 = Boolean(log.amIn && log.amIn.trim() && log.amIn !== "-")
+    const has1 = Boolean(log.amOut && log.amOut.trim() && log.amOut !== "-")
+    const has2 = Boolean(log.pmIn && log.pmIn.trim() && log.pmIn !== "-")
+    const has3 = Boolean(log.pmOut && log.pmOut.trim() && log.pmOut !== "-")
+
+    // Case 1: Middle gap (amIn and pmOut present, amOut and pmIn empty)
+    // OR if all 4 are present with a specialNote (user didn't clear 12:00 and 1:00 lunch)
+    if ((has0 && has3 && !has1 && !has2) || (has0 && has1 && has2 && has3)) {
+      return {
+        drawLineL2: true,
+        drawLineL3: false,
+        drawLineL4: true,
+        mergedIndices: new Set([1, 2]),
+        mergedNote: {
+          text,
+          startX: l2,
+          endX: l4,
+          centerX: (l2 + l4) / 2,
+          maxWidth: l4 - l2 - 2 * scaleX,
+        },
+      }
+    }
+
+    // Case 2: Afternoon gap (amIn and amOut present, pmIn and pmOut empty)
+    if (has0 && has1 && !has2 && !has3) {
+      return {
+        drawLineL2: true,
+        drawLineL3: true,
+        drawLineL4: false,
+        mergedIndices: new Set([2, 3]),
+        mergedNote: {
+          text,
+          startX: l3,
+          endX: l5,
+          centerX: (l3 + l5) / 2,
+          maxWidth: l5 - l3 - 2 * scaleX,
+        },
+      }
+    }
+
+    // Case 3: Morning gap (amIn and amOut empty, pmIn and pmOut present)
+    if (!has0 && !has1 && has2 && has3) {
+      return {
+        drawLineL2: false,
+        drawLineL3: true,
+        drawLineL4: true,
+        mergedIndices: new Set([0, 1]),
+        mergedNote: {
+          text,
+          startX: l1,
+          endX: l3,
+          centerX: (l1 + l3) / 2,
+          maxWidth: l3 - l1 - 2 * scaleX,
+        },
+      }
+    }
+
+    // Case 4: Only amIn is present (rest of day is OB/special)
+    if (has0 && !has1 && !has2 && !has3) {
+      return {
+        drawLineL2: true,
+        drawLineL3: false,
+        drawLineL4: false,
+        mergedIndices: new Set([1, 2, 3]),
+        mergedNote: {
+          text,
+          startX: l2,
+          endX: l5,
+          centerX: (l2 + l5) / 2,
+          maxWidth: l5 - l2 - 2 * scaleX,
+        },
+      }
+    }
+
+    // Case 5: Only pmOut is present (OB/special until end-of-day return)
+    if (!has0 && !has1 && !has2 && has3) {
+      return {
+        drawLineL2: false,
+        drawLineL3: false,
+        drawLineL4: true,
+        mergedIndices: new Set([0, 1, 2]),
+        mergedNote: {
+          text,
+          startX: l1,
+          endX: l4,
+          centerX: (l1 + l4) / 2,
+          maxWidth: l4 - l1 - 2 * scaleX,
+        },
+      }
+    }
+
+    // Case 6: All empty (entire day is special note)
+    if (!has0 && !has1 && !has2 && !has3) {
+      return {
+        drawLineL2: false,
+        drawLineL3: false,
+        drawLineL4: false,
+        mergedIndices: new Set([0, 1, 2, 3]),
+        mergedNote: {
+          text,
+          startX: l1,
+          endX: l5,
+          centerX: (l1 + l5) / 2,
+          maxWidth: l5 - l1 - 2 * scaleX,
+        },
+      }
+    }
+
+    // Case 7: Only amOut is empty
+    if (!has1 && has0 && has2 && has3) {
+      return {
+        drawLineL2: true,
+        drawLineL3: true,
+        drawLineL4: true,
+        mergedIndices: new Set([1]),
+        mergedNote: {
+          text,
+          startX: l2,
+          endX: l3,
+          centerX: (l2 + l3) / 2,
+          maxWidth: l3 - l2 - 1.5 * scaleX,
+        },
+      }
+    }
+
+    // Case 8: Only pmIn is empty
+    if (!has2 && has0 && has1 && has3) {
+      return {
+        drawLineL2: true,
+        drawLineL3: true,
+        drawLineL4: true,
+        mergedIndices: new Set([2]),
+        mergedNote: {
+          text,
+          startX: l3,
+          endX: l4,
+          centerX: (l3 + l4) / 2,
+          maxWidth: l4 - l3 - 1.5 * scaleX,
+        },
+      }
+    }
+
+    // Fallback: merge across contiguous empty slots
+    const hasList = [has0, has1, has2, has3]
+    const emptyIndices = [0, 1, 2, 3].filter((i) => !hasList[i])
+    if (emptyIndices.length > 0) {
+      const minIdx = Math.min(...emptyIndices)
+      const maxIdx = Math.max(...emptyIndices) + 1
+      const bounds = [l1, l2, l3, l4, l5]
+      const startX = bounds[minIdx] ?? l1
+      const endX = bounds[maxIdx] ?? l5
+      return {
+        drawLineL2: minIdx > 1 || maxIdx <= 1,
+        drawLineL3: minIdx > 2 || maxIdx <= 2,
+        drawLineL4: minIdx > 3 || maxIdx <= 3,
+        mergedIndices: new Set(emptyIndices),
+        mergedNote: {
+          text,
+          startX,
+          endX,
+          centerX: (startX + endX) / 2,
+          maxWidth: endX - startX - 2 * scaleX,
+        },
+      }
+    }
+  }
+
+  // Regular work day or special case without note
+  return {
+    drawLineL2: true,
+    drawLineL3: true,
+    drawLineL4: true,
+    mergedIndices: new Set<number>(),
+  }
 }
 
 /** Region VII (PHILFIDA RO VII) Civil Service Form No. 48 layout â€” split PDF option only. */
@@ -320,10 +593,15 @@ function drawDtrCardRegion7(
         (log.status.startsWith("leave") && log.status !== "leave-cto-am" && log.status !== "leave-cto-pm") ||
         log.status === "ob")
 
+    const slotLayout =
+      !isCrossedOut && inMonth && log
+        ? computeTimeSlotsLayout(log, l1, l2, l3, l4, l5, scaleX, true)
+        : null
+
     if (!isSpanned) {
-      doc.line(l2, rowY, l2, rowY + rowH)
-      doc.line(l3, rowY, l3, rowY + rowH)
-      doc.line(l4, rowY, l4, rowY + rowH)
+      if (!slotLayout || slotLayout.drawLineL2) doc.line(l2, rowY, l2, rowY + rowH)
+      if (!slotLayout || slotLayout.drawLineL3) doc.line(l3, rowY, l3, rowY + rowH)
+      if (!slotLayout || slotLayout.drawLineL4) doc.line(l4, rowY, l4, rowY + rowH)
     }
     // Overtime IN/OUT divider on every data row
     doc.line(l6, rowY, l6, rowY + rowH)
@@ -391,40 +669,36 @@ function drawDtrCardRegion7(
         )
         doc.setFont("helvetica", "normal")
         doc.setFontSize(7)
-      } else if (log.status === "leave-cto-am" || log.status === "leave-cto-pm") {
-        if (log.status === "leave-cto-am") {
-          doc.setFont("helvetica", "bold")
-          doc.text("CTO", l1 + colW.amIn / 2, rowY + 3.6 * scaleY, { align: "center" })
-          doc.text("CTO", l2 + colW.amOut / 2, rowY + 3.6 * scaleY, { align: "center" })
-          doc.setFont("helvetica", "normal")
-          drawRegion7CellTime(doc, log.pmIn, l3 + colW.pmIn / 2, rowY, scaleY)
-          drawRegion7CellTime(doc, log.pmOut, l4 + colW.pmOut / 2, rowY, scaleY)
-        } else {
+      } else {
+        if (!slotLayout?.mergedIndices.has(0)) {
           drawRegion7CellTime(doc, log.amIn, l1 + colW.amIn / 2, rowY, scaleY)
+        }
+        if (!slotLayout?.mergedIndices.has(1)) {
           drawRegion7CellTime(doc, log.amOut, l2 + colW.amOut / 2, rowY, scaleY)
-          doc.setFont("helvetica", "bold")
-          doc.text("CTO", l3 + colW.pmIn / 2, rowY + 3.6 * scaleY, { align: "center" })
-          doc.text("CTO", l4 + colW.pmOut / 2, rowY + 3.6 * scaleY, { align: "center" })
-          doc.setFont("helvetica", "normal")
+        }
+        if (!slotLayout?.mergedIndices.has(2)) {
+          drawRegion7CellTime(doc, log.pmIn, l3 + colW.pmIn / 2, rowY, scaleY)
+        }
+        if (!slotLayout?.mergedIndices.has(3)) {
+          drawRegion7CellTime(doc, log.pmOut, l4 + colW.pmOut / 2, rowY, scaleY)
         }
         drawRegion7CellTime(doc, undefined, l5 + colW.otIn / 2, rowY, scaleY)
         drawRegion7CellTime(doc, undefined, l6 + colW.otOut / 2, rowY, scaleY)
-      } else {
-        drawRegion7CellTime(doc, log.amIn, l1 + colW.amIn / 2, rowY, scaleY)
-        drawRegion7CellTime(doc, log.amOut, l2 + colW.amOut / 2, rowY, scaleY)
-        drawRegion7CellTime(doc, log.pmIn, l3 + colW.pmIn / 2, rowY, scaleY)
-        drawRegion7CellTime(doc, log.pmOut, l4 + colW.pmOut / 2, rowY, scaleY)
-        drawRegion7CellTime(doc, undefined, l5 + colW.otIn / 2, rowY, scaleY)
-        drawRegion7CellTime(doc, undefined, l6 + colW.otOut / 2, rowY, scaleY)
 
-        if (log.status === "special" && log.specialNote) {
-          drawFittedCenterText(doc,
-            log.specialNote.toUpperCase(),
-            spanCenterX,
+        if (slotLayout?.mergedNote) {
+          const isBadge =
+            slotLayout.mergedNote.text === "CTO" ||
+            slotLayout.mergedNote.text === "ABSENT" ||
+            slotLayout.mergedNote.text === "Absent"
+          drawFittedCenterText(
+            doc,
+            slotLayout.mergedNote.text,
+            slotLayout.mergedNote.centerX,
             rowY + 3.6 * scaleY,
-            l5 - l1 - 3 * scaleX,
-            5.5,
-            3.5
+            slotLayout.mergedNote.maxWidth,
+            isBadge ? 7 : 5.5,
+            3.0,
+            "bold"
           )
           doc.setFont("helvetica", "normal")
           doc.setFontSize(7)
@@ -660,10 +934,15 @@ function drawDtrCard(
         (log.status.startsWith("leave") && log.status !== "leave-cto-am" && log.status !== "leave-cto-pm") ||
         log.status === "ob")
 
+    const slotLayout =
+      inRange && log
+        ? computeTimeSlotsLayout(log, l1, l2, l3, l4, l5, scaleX, false)
+        : null
+
     if (!isSpanned) {
-      doc.line(l2, rowY, l2, rowY + rowH)
-      doc.line(l3, rowY, l3, rowY + rowH)
-      doc.line(l4, rowY, l4, rowY + rowH)
+      if (!slotLayout || slotLayout.drawLineL2) doc.line(l2, rowY, l2, rowY + rowH)
+      if (!slotLayout || slotLayout.drawLineL3) doc.line(l3, rowY, l3, rowY + rowH)
+      if (!slotLayout || slotLayout.drawLineL4) doc.line(l4, rowY, l4, rowY + rowH)
     }
 
     if (inRange && log) {
@@ -709,20 +988,6 @@ function drawDtrCard(
         )
         doc.setFont("helvetica", "normal")
         doc.setFontSize(6.5)
-      } else if (log.status === "leave-cto-am" || log.status === "leave-cto-pm") {
-        doc.setFont("helvetica", "bold")
-        if (log.status === "leave-cto-am") {
-          doc.text("CTO", l1 + colW.amIn / 2, rowY + 3.2 * scaleY, { align: "center" })
-          doc.text("CTO", l2 + colW.amOut / 2, rowY + 3.2 * scaleY, { align: "center" })
-          if (log.pmIn) doc.text(log.pmIn, l3 + colW.pmIn / 2, rowY + 3.2 * scaleY, { align: "center" })
-          if (log.pmOut) doc.text(log.pmOut, l4 + colW.pmOut / 2, rowY + 3.2 * scaleY, { align: "center" })
-        } else {
-          if (log.amIn) doc.text(log.amIn, l1 + colW.amIn / 2, rowY + 3.2 * scaleY, { align: "center" })
-          if (log.amOut) doc.text(log.amOut, l2 + colW.amOut / 2, rowY + 3.2 * scaleY, { align: "center" })
-          doc.text("CTO", l3 + colW.pmIn / 2, rowY + 3.2 * scaleY, { align: "center" })
-          doc.text("CTO", l4 + colW.pmOut / 2, rowY + 3.2 * scaleY, { align: "center" })
-        }
-        doc.setFont("helvetica", "normal")
       } else if (log.status === "ob") {
         const locationText = log.location ? ` - ${log.location}` : ""
         const rawLabel = `OB${locationText}`
@@ -737,30 +1002,44 @@ function drawDtrCard(
         doc.setFont("helvetica", "normal")
         doc.setFontSize(6.5)
       } else {
-        if (log.amIn) doc.text(log.amIn, l1 + colW.amIn / 2, rowY + 3.2 * scaleY, { align: "center" })
-        if (log.amOut) doc.text(log.amOut, l2 + colW.amOut / 2, rowY + 3.2 * scaleY, { align: "center" })
-        if (log.pmIn) doc.text(log.pmIn, l3 + colW.pmIn / 2, rowY + 3.2 * scaleY, { align: "center" })
-        if (log.pmOut) doc.text(log.pmOut, l4 + colW.pmOut / 2, rowY + 3.2 * scaleY, { align: "center" })
+        if (!slotLayout?.mergedIndices.has(0) && log.amIn) {
+          doc.text(log.amIn, l1 + colW.amIn / 2, rowY + 3.2 * scaleY, { align: "center" })
+        }
+        if (!slotLayout?.mergedIndices.has(1) && log.amOut) {
+          doc.text(log.amOut, l2 + colW.amOut / 2, rowY + 3.2 * scaleY, { align: "center" })
+        }
+        if (!slotLayout?.mergedIndices.has(2) && log.pmIn) {
+          doc.text(log.pmIn, l3 + colW.pmIn / 2, rowY + 3.2 * scaleY, { align: "center" })
+        }
+        if (!slotLayout?.mergedIndices.has(3) && log.pmOut) {
+          doc.text(log.pmOut, l4 + colW.pmOut / 2, rowY + 3.2 * scaleY, { align: "center" })
+        }
 
-        if (log.status === "special" && log.specialNote) {
-          drawFittedCenterText(doc,
-            log.specialNote,
-            spanCenterX,
+        if (slotLayout?.mergedNote) {
+          const isBadge =
+            slotLayout.mergedNote.text === "CTO" ||
+            slotLayout.mergedNote.text === "ABSENT" ||
+            slotLayout.mergedNote.text === "Absent"
+          drawFittedCenterText(
+            doc,
+            slotLayout.mergedNote.text,
+            slotLayout.mergedNote.centerX,
             rowY + 3.2 * scaleY,
-            l5 - l1 - 2 * scaleX,
-            6,
-            3.5
+            slotLayout.mergedNote.maxWidth,
+            isBadge ? 6.5 : 5.5,
+            3.0,
+            "bold"
           )
           doc.setFont("helvetica", "normal")
           doc.setFontSize(6.5)
-        } else {
-          const totalUtMins = log.lateMinutes + log.undertimeMinutes
-          if (totalUtMins > 0) {
-            const hrs = Math.floor(totalUtMins / 60)
-            const mins = totalUtMins % 60
-            if (hrs > 0) doc.text(hrs.toString(), l5 + colW.utHrs / 2, rowY + 3.2 * scaleY, { align: "center" })
-            if (mins > 0) doc.text(mins.toString(), l6 + colW.utMins / 2, rowY + 3.2 * scaleY, { align: "center" })
-          }
+        }
+
+        const totalUtMins = log.lateMinutes + log.undertimeMinutes
+        if (totalUtMins > 0) {
+          const hrs = Math.floor(totalUtMins / 60)
+          const mins = totalUtMins % 60
+          if (hrs > 0) doc.text(hrs.toString(), l5 + colW.utHrs / 2, rowY + 3.2 * scaleY, { align: "center" })
+          if (mins > 0) doc.text(mins.toString(), l6 + colW.utMins / 2, rowY + 3.2 * scaleY, { align: "center" })
         }
       }
     }

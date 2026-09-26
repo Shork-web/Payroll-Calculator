@@ -300,7 +300,7 @@ export function usePayrollActions({
         lateIncidents: Array<{
           date: string
           minutes: number
-          type: "late" | "undertime" | "absent"
+          type: "late" | "undertime" | "absent" | "halfday" | "halfday-am" | "halfday-pm"
           days?: number
         }>
       },

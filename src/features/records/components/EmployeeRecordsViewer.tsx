@@ -43,6 +43,12 @@ import {
 import { EmptyState } from "@/shared/components/EmptyState"
 import { useConfirmDialog } from "@/shared/hooks/useConfirmDialog"
 import type { PayrollEntry } from "@/features/payroll/types/payroll"
+import {
+  isDayBasedAttendanceType,
+  absenceDaysForIncident,
+  attendanceTypeLabel,
+  attendanceDurationText,
+} from "@/features/payroll/lib/attendanceIncidents"
 
 // Helper function to format numbers as pesos
 function n(v: number): string {
@@ -798,34 +804,19 @@ export function EmployeeRecordsViewer({ entries, onEdit, onDelete }: EmployeeRec
                           </TableHead>
                           <TableBody>
                             {selectedEntry.inputs.lateIncidents.map((incident, idx) => {
-                              const isAbsent = incident.type === "absent"
-                              const isLate = incident.type === "late" || !incident.type
-                              const isUndertime = incident.type === "undertime"
-
+                              const isDayBased = isDayBasedAttendanceType(incident.type)
                               const minutes = Number(incident.minutes) || 0
-                              const days = Number(incident.days) || 0
+                              const days = absenceDaysForIncident(incident)
 
-                              if (!incident.date?.trim() || (isAbsent && days === 0) || (!isAbsent && minutes === 0)) {
+                              if (!incident.date?.trim() || (isDayBased && days <= 0) || (!isDayBased && minutes <= 0)) {
                                 return null
                               }
 
-                              let typeLabel = ""
-                              let durationText = ""
-                              let cost = 0
-
-                              if (isAbsent) {
-                                typeLabel = "Absence"
-                                durationText = `${days} day${days > 1 ? "s" : ""}`
-                                cost = days * selectedEntry.result.dailyRate
-                              } else if (isLate) {
-                                typeLabel = "Tardiness (Late)"
-                                durationText = `${minutes} min${minutes > 1 ? "s" : ""}`
-                                cost = minutes * selectedEntry.result.perMinRate
-                              } else if (isUndertime) {
-                                typeLabel = "Undertime"
-                                durationText = `${minutes} min${minutes > 1 ? "s" : ""}`
-                                cost = minutes * selectedEntry.result.perMinRate
-                              }
+                              const typeLabel = attendanceTypeLabel(incident.type)
+                              const durationText = attendanceDurationText(incident)
+                              const cost = isDayBased
+                                ? days * selectedEntry.result.dailyRate
+                                : minutes * selectedEntry.result.perMinRate
 
                               return (
                                 <TableRow key={idx}>

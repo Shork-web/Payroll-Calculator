@@ -1,4 +1,4 @@
-﻿import jsPDF from "jspdf"
+import jsPDF from "jspdf"
 
 import { formatPayPeriod } from "@/shared/lib/format"
 import type { PayrollEntry, Signatory } from "@/features/payroll/types/payroll"
@@ -174,13 +174,15 @@ export async function exportConsolidatedPayrollPdf(
     doc.setTextColor(100, 100, 100)
     const modeStr = result.computationType === "daily"
       ? "Daily"
-      : result.computationType === "monthly"
-        ? "Monthly"
-        : result.computationType === "monthly-no-tax"
-          ? "Monthly (No Tax)"
-          : result.computationType === "semi-monthly-no-tax"
-            ? "Semi-Mo (No Tax)"
-            : "Semi-Monthly"
+      : result.computationType === "daily-no-tax"
+        ? "Daily (No Tax)"
+        : result.computationType === "monthly"
+          ? "Monthly"
+          : result.computationType === "monthly-no-tax"
+            ? "Monthly (No Tax)"
+            : result.computationType === "semi-monthly-no-tax"
+              ? "Semi-Mo (No Tax)"
+              : "Semi-Monthly"
     doc.text(modeStr, cols.modeL, textY)
 
     // Base Pay

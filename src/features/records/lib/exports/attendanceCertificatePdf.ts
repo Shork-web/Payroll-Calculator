@@ -2,6 +2,12 @@
 
 import { formatPayPeriod } from "@/shared/lib/format"
 import type { PayrollEntry } from "@/features/payroll/types/payroll"
+import {
+  absenceDaysForIncident,
+  attendanceDurationText,
+  attendanceTypeLabel,
+  isDayBasedAttendanceType,
+} from "@/features/payroll/lib/attendanceIncidents"
 import { n } from "@/lib/exports/pdfShared"
 export function exportAttendanceCertificatePdf(entry: PayrollEntry): void {
   const doc = new jsPDF({
@@ -116,37 +122,23 @@ export function exportAttendanceCertificatePdf(entry: PayrollEntry): void {
   doc.setTextColor(0, 0, 0)
 
   incidents.forEach((item) => {
-    const isLate = item.type === "late" || !item.type
-    const isUndertime = item.type === "undertime"
-    const isAbsent = item.type === "absent"
-
+    const isDayBased = isDayBasedAttendanceType(item.type)
     const minutes = Number(item.minutes) || 0
-    const days = Number(item.days) || 0
+    const days = absenceDaysForIncident(item)
 
-    if (item.date?.trim() && ((!isAbsent && minutes > 0) || (isAbsent && days > 0))) {
+    if (item.date?.trim() && ((isDayBased && days > 0) || (!isDayBased && minutes > 0))) {
       hasIncidents = true
 
       let deductionText = ""
-      let durationText = ""
-      let typeText = ""
-
-      if (isAbsent) {
-        typeText = "Absence"
-        durationText = `${days} day${days > 1 ? "s" : ""}`
+      if (isDayBased) {
         deductionText = `Php ${n(days * result.dailyRate)}`
-      } else if (isLate) {
-        typeText = "Tardiness (Late)"
-        durationText = `${minutes} min${minutes > 1 ? "s" : ""}`
-        deductionText = `Php ${n(minutes * result.perMinRate)}`
-      } else if (isUndertime) {
-        typeText = "Undertime"
-        durationText = `${minutes} min${minutes > 1 ? "s" : ""}`
+      } else {
         deductionText = `Php ${n(minutes * result.perMinRate)}`
       }
 
       doc.text(item.date, pageMargin + 4, y + 5)
-      doc.text(typeText, pageMargin + 40, y + 5)
-      doc.text(durationText, pageMargin + 95, y + 5)
+      doc.text(attendanceTypeLabel(item.type), pageMargin + 40, y + 5)
+      doc.text(attendanceDurationText(item), pageMargin + 95, y + 5)
       doc.text(deductionText, amountCol - 4, y + 5, { align: "right" })
 
       y += 8.5

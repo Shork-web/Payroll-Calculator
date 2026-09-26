@@ -9,6 +9,7 @@ export const COMPUTATION_TYPE_OPTIONS: ReadonlyArray<{
   { value: "semi-monthly", label: "Semi-Monthly (with tax)" },
   { value: "semi-monthly-no-tax", label: "Semi-Monthly (no tax)" },
   { value: "daily", label: "Daily Rate (with tax)" },
+  { value: "daily-no-tax", label: "Daily Rate (no tax)" },
   { value: "monthly", label: "Monthly (with tax)" },
   { value: "monthly-no-tax", label: "Monthly (no tax)" },
 ] as const
@@ -22,6 +23,8 @@ export function computationTypeShortLabel(type: ComputationType): string {
   switch (type) {
     case "daily":
       return "Daily"
+    case "daily-no-tax":
+      return "Daily (NT)"
     case "monthly":
       return "Monthly"
     case "monthly-no-tax":

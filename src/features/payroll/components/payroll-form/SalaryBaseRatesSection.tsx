@@ -24,7 +24,7 @@ export function SalaryBaseRatesSection() {
           name="workingDays"
           label="Working days / month"
           type="number"
-          disabled={computationTypeValue === "daily" || computationTypeValue === "monthly"}
+          disabled={computationTypeValue === "daily" || computationTypeValue === "daily-no-tax" || computationTypeValue === "monthly" || computationTypeValue === "monthly-no-tax"}
           registerOptions={numberFieldOptions}
           slotProps={{
             htmlInput: { step: 1, min: 1, max: 31 },

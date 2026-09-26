@@ -25,8 +25,8 @@ export interface PayrollInputs {
   lateDates?: string | undefined
   undertimeDates?: string | undefined
   absentDates?: string | undefined
-  lateIncidents?: Array<{ date: string; minutes: number; type: "late" | "undertime" | "absent"; days?: number }> | undefined
-  computationType: "semi-monthly" | "daily" | "monthly" | "semi-monthly-no-tax" | "monthly-no-tax"
+  lateIncidents?: Array<{ date: string; minutes: number; type: "late" | "undertime" | "absent" | "halfday" | "halfday-am" | "halfday-pm"; days?: number }> | undefined
+  computationType: "semi-monthly" | "daily" | "daily-no-tax" | "monthly" | "semi-monthly-no-tax" | "monthly-no-tax"
   additionalTax: number
   additionalTaxDate?: string | undefined
   additionalTaxReason?: string | undefined
@@ -56,7 +56,7 @@ export interface PayrollResult {
   tax: number
   totalDeductions: number
   netPay: number
-  computationType: "semi-monthly" | "daily" | "monthly" | "semi-monthly-no-tax" | "monthly-no-tax"
+  computationType: "semi-monthly" | "daily" | "daily-no-tax" | "monthly" | "semi-monthly-no-tax" | "monthly-no-tax"
   exemptionLimit: number
 }
 

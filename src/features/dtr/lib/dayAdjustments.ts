@@ -8,10 +8,15 @@ export function computeDayAdjustments(
     log.status !== "regular" &&
     log.status !== "special" &&
     log.status !== "leave-cto-am" &&
-    log.status !== "leave-cto-pm"
+    log.status !== "leave-cto-pm" &&
+    log.status !== "absent-am" &&
+    log.status !== "absent-pm"
   ) {
     return { lateMinutes: 0, undertimeMinutes: 0 }
   }
+
+  const isAmExempt = log.status === "leave-cto-am" || log.status === "absent-am"
+  const isPmExempt = log.status === "leave-cto-pm" || log.status === "absent-pm"
 
   let late = 0
   let ut = 0
@@ -29,14 +34,14 @@ export function computeDayAdjustments(
     const targetPmIn = parseTimeToMinutes(targetPmInStr, true)
     const targetPmOut = parseTimeToMinutes(targetPmOutStr, true)
 
-    if (log.amIn && log.status !== "leave-cto-am") {
+    if (log.amIn && !isAmExempt) {
       const amInMin = parseTimeToMinutes(log.amIn, false)
       if (amInMin > targetAmIn) {
         l += amInMin - targetAmIn
       }
     }
 
-    if (log.pmIn && log.status !== "leave-cto-pm") {
+    if (log.pmIn && !isPmExempt) {
       const pmInMin = parseTimeToMinutes(log.pmIn, true)
       if (pmInMin > targetPmIn) {
         l += pmInMin - targetPmIn
@@ -44,13 +49,13 @@ export function computeDayAdjustments(
     }
 
     if (log.status !== "special") {
-      if (log.amOut && log.status !== "leave-cto-am") {
+      if (log.amOut && !isAmExempt) {
         const amOutMin = parseTimeToMinutes(log.amOut, false)
         if (amOutMin < targetAmOut) {
           u += targetAmOut - amOutMin
         }
       }
-      if (log.pmOut && log.status !== "leave-cto-pm") {
+      if (log.pmOut && !isPmExempt) {
         const pmOutMin = parseTimeToMinutes(log.pmOut, true)
         if (pmOutMin < targetPmOut) {
           u += targetPmOut - pmOutMin
@@ -72,7 +77,7 @@ export function computeDayAdjustments(
   if (isMonday) {
     let requiredPmOutMin = 1020
 
-    if (log.amIn && log.status !== "leave-cto-am") {
+    if (log.amIn && !isAmExempt) {
       const amInMin = parseTimeToMinutes(log.amIn, false)
       if (amInMin <= 420) {
         requiredPmOutMin = 960
@@ -84,7 +89,7 @@ export function computeDayAdjustments(
       }
     } else {
       let pmLate = 0
-      if (log.pmIn && log.status !== "leave-cto-pm") {
+      if (log.pmIn && !isPmExempt) {
         const pmInMin = parseTimeToMinutes(log.pmIn, true)
         if (pmInMin > 780) {
           pmLate = pmInMin - 780
@@ -93,7 +98,7 @@ export function computeDayAdjustments(
 
       let utOption1 = 0
       let utOption2 = 0
-      if (log.status !== "special" && log.pmOut && log.status !== "leave-cto-pm") {
+      if (log.status !== "special" && log.pmOut && !isPmExempt) {
         const pmOutMin = parseTimeToMinutes(log.pmOut, true)
         if (pmOutMin < 960) {
           utOption1 = 960 - pmOutMin
@@ -117,8 +122,8 @@ export function computeDayAdjustments(
       }
     }
 
-    if (log.amIn && log.status !== "leave-cto-am") {
-      if (log.pmIn && log.status !== "leave-cto-pm") {
+    if (log.amIn && !isAmExempt) {
+      if (log.pmIn && !isPmExempt) {
         const pmInMin = parseTimeToMinutes(log.pmIn, true)
         if (pmInMin > 780) {
           late += pmInMin - 780
@@ -126,14 +131,14 @@ export function computeDayAdjustments(
       }
 
       if (log.status !== "special") {
-        if (log.amOut) {
+        if (log.amOut && !isAmExempt) {
           const amOutMin = parseTimeToMinutes(log.amOut, false)
           if (amOutMin < 720) {
             ut += 720 - amOutMin
           }
         }
 
-        if (log.pmOut && log.status !== "leave-cto-pm") {
+        if (log.pmOut && !isPmExempt) {
           const pmOutMin = parseTimeToMinutes(log.pmOut, true)
           if (pmOutMin < requiredPmOutMin) {
             ut += requiredPmOutMin - pmOutMin
@@ -144,7 +149,7 @@ export function computeDayAdjustments(
   } else if (isTuesdayToFriday) {
     let requiredPmOutMin = 1020
 
-    if (log.amIn && log.status !== "leave-cto-am") {
+    if (log.amIn && !isAmExempt) {
       const amInMin = parseTimeToMinutes(log.amIn, false)
       if (amInMin <= 420) {
         requiredPmOutMin = 960
@@ -156,7 +161,7 @@ export function computeDayAdjustments(
       }
     }
 
-    if (log.pmIn && log.status !== "leave-cto-pm") {
+    if (log.pmIn && !isPmExempt) {
       const pmInMin = parseTimeToMinutes(log.pmIn, true)
       if (pmInMin > 780) {
         late += pmInMin - 780
@@ -164,14 +169,14 @@ export function computeDayAdjustments(
     }
 
     if (log.status !== "special") {
-      if (log.amOut && log.status !== "leave-cto-am") {
+      if (log.amOut && !isAmExempt) {
         const amOutMin = parseTimeToMinutes(log.amOut, false)
         if (amOutMin < 720) {
           ut += 720 - amOutMin
         }
       }
 
-      if (log.pmOut && log.status !== "leave-cto-pm") {
+      if (log.pmOut && !isPmExempt) {
         const pmOutMin = parseTimeToMinutes(log.pmOut, true)
         if (pmOutMin < requiredPmOutMin) {
           ut += requiredPmOutMin - pmOutMin

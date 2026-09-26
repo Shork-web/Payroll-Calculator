@@ -8,6 +8,8 @@ export interface DtrDayLog {
   status:
     | "regular"
     | "absent"
+    | "absent-am"
+    | "absent-pm"
     | "weekend"
     | "holiday"
     | "special-holiday"

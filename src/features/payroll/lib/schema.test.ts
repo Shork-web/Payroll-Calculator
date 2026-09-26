@@ -106,4 +106,32 @@ describe("payrollSchema", () => {
       ])
     }
   })
+
+  it("parses half-day absent incidents (Morning and Afternoon) in the incidents log list", () => {
+    const result = payrollSchema.safeParse({
+      name: "Iverson G. Merto",
+      position: "Project Development Office - I",
+      periodStart: "2026-05-01",
+      periodEnd: "2026-05-15",
+      monthlyRate: "27000",
+      workingDays: "22",
+      lateMinutes: "0",
+      absentDays: "0",
+      overpayment: "0",
+      lateIncidents: [
+        { date: "June 6", minutes: "0", type: "halfday", days: "0.5" },
+        { date: "June 7", minutes: "0", type: "halfday-am", days: "0.5" },
+        { date: "June 8", minutes: "0", type: "halfday-pm", days: "0.5" },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.lateIncidents).toEqual([
+        { date: "June 6", minutes: 0, type: "halfday", days: 0.5 },
+        { date: "June 7", minutes: 0, type: "halfday-am", days: 0.5 },
+        { date: "June 8", minutes: 0, type: "halfday-pm", days: 0.5 },
+      ])
+    }
+  })
 })
