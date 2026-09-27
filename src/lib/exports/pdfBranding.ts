@@ -314,6 +314,7 @@ export type TableRowType = "earning" | "deduction" | "total" | "neutral" | "sect
 export interface OfficialTableRow {
   index: string
   description: string
+  subDescription?: string | undefined
   category: string
   amount: string
   rowType?: TableRowType
@@ -394,7 +395,18 @@ export function drawOfficialTable(
     const descLines = doc.splitTextToSize(row.description, isSection ? contentW - s(8) : descMaxW)
     const typeLines = isSection ? [] : doc.splitTextToSize(row.category, typeMaxW)
     const textLineH = s(compact ? 3 : 4)
-    const textBlockH = Math.max(descLines.length, typeLines.length || 1) * textLineH
+    const subTextLineH = s(compact ? 2.4 : 3.2)
+    let subDescLines: string[] = []
+    if (row.subDescription) {
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(s(compact ? 5.8 : 7.2))
+      subDescLines = doc.splitTextToSize(row.subDescription, descMaxW - s(2))
+    }
+    const textBlockH = Math.max(
+      descLines.length * textLineH + (subDescLines.length > 0 ? subDescLines.length * subTextLineH + s(0.4) : 0),
+      typeLines.length * textLineH,
+      textLineH,
+    )
     const thisRowH = (isSection
       ? s(compact ? 3.5 : 6)
       : Math.max(minRowH, s(compact ? 2 : 3) + textBlockH)) + scaleMm(rowStretch, scale)
@@ -442,6 +454,14 @@ export function drawOfficialTable(
         doc.text(row.index, colIndexCenterX, textY, { align: "center" })
       }
       drawTextLines(doc, descLines, colDescX, textY, textLineH)
+
+      if (subDescLines.length > 0) {
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(s(compact ? 5.8 : 7.2))
+        doc.setTextColor(71, 85, 105)
+        const subTextY = textY + descLines.length * textLineH + s(0.4)
+        drawTextLines(doc, subDescLines, colDescX + s(1.5), subTextY, subTextLineH)
+      }
 
       const typeColor: [number, number, number] = useBlackText
         ? blackText
@@ -623,7 +643,17 @@ function measureTableRowHeight(
   )
   const descLines = doc.splitTextToSize(row.description, isSection ? contentW - s(8) : descMaxW)
   const typeLines = isSection ? [] : doc.splitTextToSize(row.category, typeMaxW)
-  const textBlockH = Math.max(descLines.length, typeLines.length || 1) * textLineH
+  const subTextLineH = s(compact ? 2.4 : 3.2)
+  let subDescLinesCount = 0
+  if (row.subDescription) {
+    doc.setFontSize(s(compact ? 5.8 : 7.2))
+    subDescLinesCount = doc.splitTextToSize(row.subDescription, descMaxW - s(2)).length
+  }
+  const textBlockH = Math.max(
+    descLines.length * textLineH + (subDescLinesCount > 0 ? subDescLinesCount * subTextLineH + s(0.4) : 0),
+    typeLines.length * textLineH,
+    textLineH,
+  )
   const base = isSection ? sectionRowH : Math.max(minRowH, padRow + textBlockH)
   return base + scaleMm(rowStretch, scale)
 }
