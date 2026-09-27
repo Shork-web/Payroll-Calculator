@@ -12,13 +12,13 @@ const DTR_PRINT_SAFE_BUFFER = 0.93
 /** Reference half-card width (mm) on A4 â€” used to compute horizontal scale. */
 const DTR_REF_CARD_W = 95
 
-function getDtrContentHeight(
+export function getDtrContentHeight(
   layoutOption: "single" | "duplicate" | "split",
   cutoffPeriod: "1st-half" | "2nd-half" | "full-month",
   daysInMonth: number
 ): number {
   const isRegion7 = layoutOption === "split"
-  const headerBlock = isRegion7 ? 69.5 : 56
+  const headerBlock = isRegion7 ? 67 : 56
 
   let dataRows: number
   if (layoutOption === "split") {
@@ -33,8 +33,7 @@ function getDtrContentHeight(
 
   const rowH = isRegion7 ? 4.6 : 4.8
   const tableBlock = rowH * (2 + dataRows)
-  // Extra padding so footer/signatures are not clipped when printing
-  const footerBlock = isRegion7 ? 50 : 58
+  const footerBlock = isRegion7 ? 39.5 : 58
 
   return headerBlock + tableBlock + footerBlock
 }
@@ -65,8 +64,13 @@ function formatRegion7LogTime(time: string | undefined): string {
   return `${hour}:${mins}`
 }
 
-/** Shrink font until text fits; ellipsis only if still too wide at minimum size. */
-function drawFittedCenterText(
+/**
+ * Draws text centered horizontally at `x`.
+ * If `rowContext` is provided and the text contains multiple words (or newlines) that would
+ * otherwise shrink below a comfortable font size, the words are cleanly stacked across
+ * 2 (or 3) lines vertically centered within the row.
+ */
+export function drawFittedCenterText(
   doc: PdfDoc,
   text: string,
   x: number,
@@ -74,28 +78,205 @@ function drawFittedCenterText(
   maxWidth: number,
   startSize: number,
   minSize = 3.5,
-  fontStyle: "normal" | "bold" | "italic" = "bold"
+  fontStyle: "normal" | "bold" | "italic" = "bold",
+  rowContext?: { rowY: number; rowH: number; scaleY?: number }
 ): void {
+  if (!text || !text.trim()) return
+
   doc.setFont("helvetica", fontStyle)
-  let fontSize = startSize
-  let displayText = text
-  doc.setFontSize(fontSize)
+  const trimmed = text.trim()
 
-  while (fontSize > minSize && doc.getTextWidth(displayText) > maxWidth) {
-    fontSize -= 0.4
-    doc.setFontSize(fontSize)
+  const fitSingleLine = (line: string, targetSize: number, minSz: number): { text: string; size: number } => {
+    let sz = targetSize
+    let disp = line
+    doc.setFontSize(sz)
+    while (sz > minSz && doc.getTextWidth(disp) > maxWidth) {
+      sz -= 0.2
+      doc.setFontSize(sz)
+    }
+    if (doc.getTextWidth(disp) > maxWidth) {
+      while (disp.length > 4 && doc.getTextWidth(`${disp}...`) > maxWidth) {
+        disp = disp.substring(0, disp.length - 1)
+      }
+      if (doc.getTextWidth(disp) > maxWidth) {
+        disp = `${disp.substring(0, Math.max(1, disp.length - 3))}...`
+      }
+    }
+    return { text: disp, size: sz }
   }
 
-  if (doc.getTextWidth(displayText) > maxWidth) {
-    while (displayText.length > 4 && doc.getTextWidth(`${displayText}...`) > maxWidth) {
-      displayText = displayText.substring(0, displayText.length - 1)
+  if (!rowContext) {
+    const single = fitSingleLine(trimmed, startSize, minSize)
+    doc.setFontSize(single.size)
+    doc.text(single.text, x, y, { align: "center" })
+    return
+  }
+
+  const { rowY, rowH, scaleY = 1 } = rowContext
+  const hasManualBreaks = trimmed.includes("\n")
+  const words = hasManualBreaks ? [] : trimmed.split(/\s+/).filter(Boolean)
+
+  doc.setFontSize(startSize)
+  const singleLineWidth = doc.getTextWidth(trimmed)
+  const singleLineFitsComfortably =
+    !hasManualBreaks &&
+    (singleLineWidth <= maxWidth ||
+      (startSize >= 6.5 && (startSize * (maxWidth / singleLineWidth)) >= 5.6) ||
+      (startSize < 6.5 && (startSize * (maxWidth / singleLineWidth)) >= 5.0) ||
+      words.length <= 1)
+
+  if (singleLineFitsComfortably) {
+    const single = fitSingleLine(trimmed, startSize, minSize)
+    doc.setFontSize(single.size)
+    doc.text(single.text, x, y, { align: "center" })
+    return
+  }
+
+  // Multi-line stacking
+  let lines: string[] = []
+
+  if (hasManualBreaks) {
+    lines = trimmed.split("\n").map((l) => l.trim()).filter(Boolean)
+  } else if (words.length >= 2) {
+    // Evaluate 2-line splits
+    let bestSplitIndex = 1
+    let bestScore = -Infinity
+    let bestFs = 0
+    const target2LineSize = Math.min(startSize, 5.4)
+
+    for (let k = 1; k < words.length; k++) {
+      const l1 = words.slice(0, k).join(" ")
+      const l2 = words.slice(k).join(" ")
+
+      let sz = target2LineSize
+      doc.setFontSize(sz)
+      const w1 = doc.getTextWidth(l1)
+      const w2 = doc.getTextWidth(l2)
+      const maxW = Math.max(w1, w2)
+      if (maxW > maxWidth) {
+        sz = target2LineSize * (maxWidth / maxW)
+      }
+
+      const diff = Math.abs(w1 - w2)
+      const score = sz * 100 - diff
+
+      if (score > bestScore) {
+        bestScore = score
+        bestSplitIndex = k
+        bestFs = sz
+      }
     }
-    if (doc.getTextWidth(displayText) > maxWidth) {
-      displayText = `${displayText.substring(0, Math.max(1, displayText.length - 3))}...`
+
+    const twoLine1 = words.slice(0, bestSplitIndex).join(" ")
+    const twoLine2 = words.slice(bestSplitIndex).join(" ")
+
+    if (bestFs >= 4.2 || words.length < 4) {
+      lines = [twoLine1, twoLine2]
+    } else {
+      // Evaluate 3-line splits for very long text
+      let bestI = 1
+      let bestJ = 2
+      let best3Score = -Infinity
+      let best3Fs = 0
+      const target3LineSize = Math.min(startSize, 3.8)
+
+      for (let i = 1; i < words.length - 1; i++) {
+        for (let j = i + 1; j < words.length; j++) {
+          const l1 = words.slice(0, i).join(" ")
+          const l2 = words.slice(i, j).join(" ")
+          const l3 = words.slice(j).join(" ")
+
+          let sz = target3LineSize
+          doc.setFontSize(sz)
+          const w1 = doc.getTextWidth(l1)
+          const w2 = doc.getTextWidth(l2)
+          const w3 = doc.getTextWidth(l3)
+          const maxW = Math.max(w1, w2, w3)
+          if (maxW > maxWidth) {
+            sz = target3LineSize * (maxWidth / maxW)
+          }
+
+          const diff = Math.max(w1, w2, w3) - Math.min(w1, w2, w3)
+          const score = sz * 100 - diff
+          if (score > best3Score) {
+            best3Score = score
+            bestI = i
+            bestJ = j
+            best3Fs = sz
+          }
+        }
+      }
+
+      if (best3Fs > bestFs * 1.1) {
+        lines = [
+          words.slice(0, bestI).join(" "),
+          words.slice(bestI, bestJ).join(" "),
+          words.slice(bestJ).join(" "),
+        ]
+      } else {
+        lines = [twoLine1, twoLine2]
+      }
+    }
+  } else {
+    lines = [trimmed]
+  }
+
+  if (lines.length === 1) {
+    const single = fitSingleLine(lines[0] ?? "", startSize, minSize)
+    doc.setFontSize(single.size)
+    doc.text(single.text, x, y, { align: "center" })
+    return
+  }
+
+  const numLines = Math.min(lines.length, 3)
+  const activeLines = lines.slice(0, numLines)
+
+  const targetStackedSize = numLines === 2 ? Math.min(startSize, 5.4) : Math.min(startSize, 3.8)
+  let stackedFontSize = targetStackedSize
+  doc.setFontSize(stackedFontSize)
+
+  for (const line of activeLines) {
+    const w = doc.getTextWidth(line)
+    if (w > maxWidth) {
+      const fitted = targetStackedSize * (maxWidth / w)
+      if (fitted < stackedFontSize) {
+        stackedFontSize = fitted
+      }
     }
   }
 
-  doc.text(displayText, x, y, { align: "center" })
+  const effectiveMin = numLines === 2 ? Math.max(minSize, 3.2) : Math.max(minSize, 2.8)
+  stackedFontSize = Math.max(effectiveMin, stackedFontSize)
+  doc.setFontSize(stackedFontSize)
+
+  const capHeight = stackedFontSize * 0.247 * scaleY
+  const cellCenterY = rowY + rowH / 2
+
+  let lineSpacing: number
+  let firstBaseline: number
+
+  if (numLines === 2) {
+    lineSpacing = Math.min(rowH * 0.42, 2.1 * scaleY)
+    firstBaseline = cellCenterY - lineSpacing / 2 + capHeight / 2
+  } else {
+    lineSpacing = Math.min(rowH * 0.29, 1.45 * scaleY)
+    firstBaseline = cellCenterY - lineSpacing + capHeight / 2
+  }
+
+  for (let idx = 0; idx < numLines; idx++) {
+    let lineToDraw = activeLines[idx] ?? ""
+    if (!lineToDraw) continue
+    if (doc.getTextWidth(lineToDraw) > maxWidth) {
+      while (lineToDraw.length > 3 && doc.getTextWidth(`${lineToDraw}...`) > maxWidth) {
+        lineToDraw = lineToDraw.substring(0, lineToDraw.length - 1)
+      }
+      if (doc.getTextWidth(lineToDraw) > maxWidth) {
+        lineToDraw = `${lineToDraw.substring(0, Math.max(1, lineToDraw.length - 2))}...`
+      }
+    }
+    const baseline = firstBaseline + idx * lineSpacing
+    doc.text(lineToDraw, x, baseline, { align: "center" })
+  }
 }
 
 function drawRegion7CellTime(
@@ -628,7 +809,9 @@ function drawDtrCardRegion7(
           rowY + 3.6 * scaleY,
           l5 - l1 - 3 * scaleX,
           7,
-          4
+          4,
+          "bold",
+          { rowY, rowH, scaleY }
         )
         doc.setFont("helvetica", "normal")
         doc.setFontSize(7)
@@ -652,7 +835,9 @@ function drawDtrCardRegion7(
           rowY + 3.6 * scaleY,
           l5 - l1 - 3 * scaleX,
           6.5,
-          3.5
+          3.5,
+          "bold",
+          { rowY, rowH, scaleY }
         )
         doc.setFont("helvetica", "normal")
         doc.setFontSize(7)
@@ -665,7 +850,9 @@ function drawDtrCardRegion7(
           rowY + 3.6 * scaleY,
           l5 - l1 - 3 * scaleX,
           6.5,
-          3.5
+          3.5,
+          "bold",
+          { rowY, rowH, scaleY }
         )
         doc.setFont("helvetica", "normal")
         doc.setFontSize(7)
@@ -698,7 +885,8 @@ function drawDtrCardRegion7(
             slotLayout.mergedNote.maxWidth,
             isBadge ? 7 : 5.5,
             3.0,
-            "bold"
+            "bold",
+            { rowY, rowH, scaleY }
           )
           doc.setFont("helvetica", "normal")
           doc.setFontSize(7)
@@ -962,7 +1150,9 @@ function drawDtrCard(
           rowY + 3.2 * scaleY,
           l5 - l1 - 2 * scaleX,
           6.5,
-          3.5
+          3.5,
+          "bold",
+          { rowY, rowH, scaleY }
         )
         doc.setFont("helvetica", "normal")
         doc.setFontSize(6.5)
@@ -984,7 +1174,9 @@ function drawDtrCard(
           rowY + 3.2 * scaleY,
           l5 - l1 - 2 * scaleX,
           6.5,
-          3.5
+          3.5,
+          "bold",
+          { rowY, rowH, scaleY }
         )
         doc.setFont("helvetica", "normal")
         doc.setFontSize(6.5)
@@ -997,7 +1189,9 @@ function drawDtrCard(
           rowY + 3.2 * scaleY,
           l5 - l1 - 2 * scaleX,
           6.5,
-          3.5
+          3.5,
+          "bold",
+          { rowY, rowH, scaleY }
         )
         doc.setFont("helvetica", "normal")
         doc.setFontSize(6.5)
@@ -1028,7 +1222,8 @@ function drawDtrCard(
             slotLayout.mergedNote.maxWidth,
             isBadge ? 6.5 : 5.5,
             3.0,
-            "bold"
+            "bold",
+            { rowY, rowH, scaleY }
           )
           doc.setFont("helvetica", "normal")
           doc.setFontSize(6.5)
@@ -1151,7 +1346,8 @@ export function exportDtrPdf(
     const cardInset = (slotW - cardW) / 2
     scaleX = cardW / DTR_REF_CARD_W
     const contentH = getDtrContentHeight(layoutOption, cutoffPeriod, daysInMonth)
-    scaleY = ((pageH - 2 * pageMarginY) / contentH) * DTR_PRINT_SAFE_BUFFER
+    const bottomMargin = 9
+    scaleY = (pageH - pageMarginY - bottomMargin) / contentH
     leftX = pageMarginX + cardInset
     rightX = pageMarginX + slotW + DTR_CARD_GAP + cardInset
   } else {
