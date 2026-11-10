@@ -896,7 +896,7 @@ function drawDtrCardRegion7(
 
         const totalUtMins = log.lateMinutes + log.undertimeMinutes
         if (totalUtMins > 0) {
-          doc.text(totalUtMins.toString(), l7 + colW.underTime / 2, rowY + 3.6 * scaleY, { align: "center" })
+          doc.text(`${totalUtMins}m`, l7 + colW.underTime / 2, rowY + 3.6 * scaleY, { align: "center" })
         }
       }
     } else if (!isCrossedOut && inMonth && !log) {
