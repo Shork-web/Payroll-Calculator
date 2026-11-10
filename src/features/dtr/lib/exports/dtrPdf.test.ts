@@ -1,7 +1,13 @@
 import { describe, it, expect, vi } from "vitest"
 import jsPDF from "jspdf"
 import fs from "fs"
-import { computeTimeSlotsLayout, drawFittedCenterText, exportDtrPdf, getDtrContentHeight } from "./dtrPdf"
+import {
+  computeTimeSlotsLayout,
+  drawFittedCenterText,
+  DTR_REGION7_BOTTOM_MARGIN,
+  exportDtrPdf,
+  getDtrContentHeight,
+} from "./dtrPdf"
 import type { DtrDayLog } from "@/features/dtr/types/dtr"
 
 describe("computeTimeSlotsLayout", () => {
@@ -361,16 +367,16 @@ describe("exportDtrPdf paper scaling", () => {
 
     for (const { paper, pageH } of paperSpecs) {
       const topMargin = 8
-      const bottomMargin = 9
+      const bottomMargin = DTR_REGION7_BOTTOM_MARGIN
       const scaleY = (pageH - topMargin - bottomMargin) / contentH
 
       // Calculate total rendered height: header (67) + table (82.8) + footer (37) = 186.8 * scaleY + ~2.5mm title
       const renderedH = 186.8 * scaleY + 2.5
       const remainingBottomMargin = pageH - topMargin - renderedH
 
-      // Assert bottom margin is balanced and printer-safe (~9 to 11mm) across all formats
-      expect(remainingBottomMargin).toBeGreaterThanOrEqual(9.0)
-      expect(remainingBottomMargin).toBeLessThanOrEqual(11.5)
+      // Space under the Approved By signatory stays even across paper sizes
+      expect(remainingBottomMargin).toBeGreaterThanOrEqual(DTR_REGION7_BOTTOM_MARGIN)
+      expect(remainingBottomMargin).toBeLessThanOrEqual(DTR_REGION7_BOTTOM_MARGIN + 2.5)
 
       // Confirm exportDtrPdf executes without error for Region VII
       expect(() => {
