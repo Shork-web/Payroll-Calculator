@@ -8,7 +8,7 @@ const DTR_MARGIN_X = 7
 const DTR_MARGIN_Y = 8
 const DTR_CARD_GAP = 2
 /** Blank space (mm) kept under the Region VII Approved By name and title. */
-export const DTR_REGION7_BOTTOM_MARGIN = 18
+export const DTR_REGION7_BOTTOM_MARGIN = 36
 /** Shrink content slightly so borders/text stay inside typical printer no-print zones. */
 const DTR_PRINT_SAFE_BUFFER = 0.93
 /** Reference half-card width (mm) on A4 â€” used to compute horizontal scale. */
